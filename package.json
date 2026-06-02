@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:browser": "vite",
+    "build:web": "vite build -c vite.web.config.ts",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-builder",
