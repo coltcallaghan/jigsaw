@@ -526,13 +526,20 @@ export class PuzzleEngine {
   }
 
   addAllToTray() {
+    const newIds: number[] = []
     this.pieces.forEach((sprite, id) => {
       if (!sprite.placed && !sprite.inTray) {
         sprite.inTray = true
         sprite.visible = false
-        this.trayOrder.push(id)
+        newIds.push(id)
       }
     })
+    // Fisher-Yates shuffle so the tray isn't trivially ordered by grid position
+    for (let i = newIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[newIds[i], newIds[j]] = [newIds[j], newIds[i]]
+    }
+    this.trayOrder.push(...newIds)
     this.onTrayUpdate(this.getTrayPieceIds())
   }
 
@@ -553,16 +560,31 @@ export class PuzzleEngine {
 
   getSaveState(): PieceState[] {
     const states: PieceState[] = []
+    // Non-tray pieces first (grid order is fine for these)
     this.pieces.forEach((sprite, id) => {
+      if (!sprite.inTray) {
+        states.push({
+          id,
+          x: sprite.x,
+          y: sprite.y,
+          placed: sprite.placed,
+          inTray: false,
+          groupId: sprite.groupId,
+        })
+      }
+    })
+    // Tray pieces last, in trayOrder sequence so loadFromSave restores the shuffle
+    for (const id of this.trayOrder) {
+      const sprite = this.pieces.get(id)!
       states.push({
         id,
         x: sprite.x,
         y: sprite.y,
-        placed: sprite.placed,
-        inTray: sprite.inTray,
+        placed: false,
+        inTray: true,
         groupId: sprite.groupId,
       })
-    })
+    }
     return states
   }
 
