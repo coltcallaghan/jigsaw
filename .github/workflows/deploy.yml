@@ -27,9 +27,13 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies (skip Electron binary)
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
-      - run: npm run build:web
+      - name: Build web
+        run: npm run build:web
 
       - uses: actions/upload-pages-artifact@v3
         with:
