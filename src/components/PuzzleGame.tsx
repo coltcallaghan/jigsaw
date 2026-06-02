@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PuzzleEngine } from '../puzzle/PuzzleEngine'
-import { computeGrid } from '../puzzle/generator'
+import { computeGrid, generatePieces } from '../puzzle/generator'
 import type { PuzzleConfig } from '../puzzle/types'
 import type { GameSettings } from '../hooks/useSettings'
 import type { SaveData, PieceState } from '../utils/saveGame'
@@ -39,9 +39,12 @@ export default function PuzzleGame({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const { cols, rows } = computeGrid(config.imageWidth, config.imageHeight, config.pieceCount)
-  const pieceW = config.imageWidth / cols
-  const pieceH = config.imageHeight / rows
   const total = cols * rows
+
+  const pieceDefs = useMemo(
+    () => generatePieces({ ...config, cols, rows }),
+    [config, cols, rows]
+  )
 
   const saveGame = useCallback(async (engine: PuzzleEngine, currentElapsed: number, placedCount: number) => {
     const pieces = engine.getSaveState()
@@ -79,13 +82,14 @@ export default function PuzzleGame({
     const engine = new PuzzleEngine({
       canvas,
       config,
+      theme: settings.theme,
+      outlines: settings.outlines,
       onProgress: (p) => setPlaced(p),
       onComplete: handleComplete,
       onTrayUpdate: (ids) => setTrayPieceIds(ids),
       onReady: () => {
         engine.setGhostOpacity(INITIAL_GHOST)
         engine.setSnapSensitivity(settings.snapSensitivity)
-        engine.setBackgroundColor(settings.backgroundColor)
 
         if (savedState && savedState.length > 0) {
           engine.loadFromSave(savedState)
@@ -115,8 +119,7 @@ export default function PuzzleGame({
   // Apply settings changes live
   useEffect(() => {
     engineRef.current?.setSnapSensitivity(settings.snapSensitivity)
-    engineRef.current?.setBackgroundColor(settings.backgroundColor)
-  }, [settings.snapSensitivity, settings.backgroundColor])
+  }, [settings.snapSensitivity])
 
   const handleGhostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value)
@@ -145,86 +148,69 @@ export default function PuzzleGame({
     onBackToMenu()
   }
 
+  const CONFETTI_COLORS = ['#FF7A4D', '#36C5C0', '#8C6BFF', '#FFC23C', '#FF2E97', '#07F2E6']
+
   return (
-    <div
-      className="flex flex-col w-full h-full"
-      onContextMenu={e => e.preventDefault()}
-    >
-      {/* Top bar */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-white/5" style={{ background: 'rgba(0,0,0,0.3)', minHeight: 44 }}>
-        <button onClick={handleBackToMenu} className="text-gray-400 hover:text-white transition-colors text-sm">
-          ← Menu
-        </button>
+    <div className="screen" onContextMenu={e => e.preventDefault()}>
 
-        <div className="flex-1" />
+      {/* HUD */}
+      <div className="hud">
+        <button className="back-link" onClick={handleBackToMenu}>← Menu</button>
 
-        {/* Progress */}
         {settings.showPieceCount && (
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-40 h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${(placed / total) * 100}%` }} />
-            </div>
-            <span className="text-gray-300 tabular-nums">{placed}/{total}</span>
+          <div className="hud-group">
+            <div className="progress-bar"><i style={{ width: `${(placed / total) * 100}%` }} /></div>
+            <span className="progress-num">{placed}/{total}</span>
           </div>
         )}
 
-        {/* Timer */}
+        <div className="spacer" />
+
         {settings.showTimer && (
-          <span className="text-gray-300 tabular-nums text-sm w-20 text-right">{formatTime(elapsed)}</span>
+          <span className="stat">◴ {formatTime(elapsed)}</span>
         )}
 
-        {/* Save */}
+        <div className="hud-group">
+          <span className="stat" style={{ fontSize: '.85rem' }}>Ghost</span>
+          <input className="rng" type="range" min={0} max={1.0} step={0.05}
+            value={ghostOpacity} style={{ width: 88 }} onChange={handleGhostChange} />
+        </div>
+
+        <button className="btn btn-ghost btn-sm" onClick={() => engineRef.current?.addAllToTray()}>
+          Tray all
+        </button>
+
         <button
+          className={`btn btn-sm${showTray ? ' btn-primary' : ' btn-ghost'}`}
+          onClick={() => setShowTray(v => !v)}
+        >
+          Tray{trayPieceIds.length > 0 ? ` · ${trayPieceIds.length}` : ''}
+        </button>
+
+        <button
+          className="btn btn-ghost btn-sm"
+          title="Save progress"
           onClick={() => {
             const engine = engineRef.current
             if (!engine) return
             const cur = Math.floor(elapsedBaseRef.current + (Date.now() - startTimeRef.current) / 1000)
             void saveGame(engine, cur, placed)
           }}
-          className="text-sm px-3 py-1 rounded bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-          title="Save progress"
         >
-          💾 Save
-        </button>
-
-        {/* Ghost overlay slider */}
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <span>Ghost</span>
-          <input type="range" min={0} max={1.0} step={0.05} value={ghostOpacity}
-            onChange={handleGhostChange} className="w-20 accent-blue-400" />
-        </div>
-
-        {/* Tray toggle */}
-        <button
-          onClick={() => setShowTray(v => !v)}
-          className={`text-sm px-3 py-1 rounded transition-colors ${
-            showTray ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
-          }`}
-        >
-          Tray {trayPieceIds.length > 0 ? `(${trayPieceIds.length})` : ''}
-          <span className="text-xs opacity-50 ml-1">right-click</span>
-        </button>
-
-        {/* Add all to tray */}
-        <button
-          onClick={() => engineRef.current?.addAllToTray()}
-          className="text-sm px-3 py-1 rounded bg-white/5 text-gray-400 hover:text-white transition-colors"
-          title="Send every unplaced piece to the tray"
-        >
-          Add all to tray
+          Save
         </button>
       </div>
 
-      {/* Main area */}
-      <div className="flex flex-1 overflow-hidden">
-        <div ref={containerRef} className="flex-1 relative overflow-hidden">
+      {/* Game body */}
+      <div className="game-body">
+        <div className="play-wrap" ref={containerRef}>
           {isLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10" style={{ background: settings.backgroundColor }}>
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-gray-400">Cutting {total.toLocaleString()} pieces…</span>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, zIndex: 10, background: 'var(--board-felt)' }}>
+              <div style={{ width: 44, height: 44, border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <span style={{ color: 'var(--text-dim)' }}>Cutting {total.toLocaleString()} pieces…</span>
             </div>
           )}
-          <canvas ref={canvasRef} className="w-full h-full" />
+          <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
           {!isLoading && (
             <ZoomPanControls
               onZoomIn={() => engineRef.current?.zoomIn()}
@@ -236,37 +222,53 @@ export default function PuzzleGame({
         </div>
 
         {showTray && (
-          <div className="border-l border-white/5 flex flex-col overflow-hidden" style={{ width: 200, background: 'rgba(0,0,0,0.2)' }}>
-            <div className="px-3 py-2 border-b border-white/5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Piece Tray
+          <div className="tray">
+            <div className="tray-head">
+              <span>Piece Tray</span>
+              <span>{trayPieceIds.length}</span>
             </div>
             <PieceTray
               pieceIds={trayPieceIds}
+              pieces={pieceDefs}
               imageDataUrl={config.imageDataUrl}
-              pieceWidth={pieceW}
-              pieceHeight={pieceH}
-              cols={cols}
+              imageWidth={config.imageWidth}
+              imageHeight={config.imageHeight}
+              theme={settings.theme}
               onRetrieve={handleRetrieve}
-              onSendAll={() => trayPieceIds.forEach(id => engineRef.current?.retrieveFromTray(id))}
             />
           </div>
         )}
       </div>
 
-      {/* Completion overlay */}
+      {/* Win overlay */}
       {isComplete && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-50">
-          <div className="rounded-2xl p-10 flex flex-col items-center gap-6 shadow-2xl border border-blue-500" style={{ background: settings.backgroundColor }}>
-            <div className="text-6xl">🎉</div>
-            <h2 className="text-3xl font-bold text-white">Puzzle Complete!</h2>
-            <p className="text-gray-300 text-lg">
-              {total.toLocaleString()} pieces in{' '}
-              <span className="text-blue-400 font-semibold">{formatTime(elapsed)}</span>
-            </p>
-            <button onClick={onBackToMenu}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold transition-colors">
-              Back to Menu
-            </button>
+        <div className="win-overlay">
+          {Array.from({ length: 60 }).map((_, i) => (
+            <span key={i} className="confetti" style={{
+              left: `${Math.random() * 100}%`,
+              background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+              animationDuration: `${2.4 + Math.random() * 2.2}s`,
+              animationDelay: `${Math.random() * 1.2}s`,
+              borderRadius: i % 3 === 0 ? '50%' : '2px',
+            }} />
+          ))}
+          <div className="card win-card fade-in">
+            <div className="chip">Puzzle complete</div>
+            <h2>Nicely done! 🎉</h2>
+            <div className="win-stats">
+              <div className="win-stat">
+                <div className="v">{formatTime(elapsed)}</div>
+                <div className="k">Time</div>
+              </div>
+              <div className="win-stat">
+                <div className="v">{total.toLocaleString()}</div>
+                <div className="k">Pieces</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+              <button className="btn btn-primary" onClick={onBackToMenu}>New Puzzle</button>
+              <button className="btn btn-ghost" onClick={onBackToMenu}>Menu</button>
+            </div>
           </div>
         </div>
       )}

@@ -9,6 +9,7 @@ import { listSaves, getSave, type SaveData, type SaveMeta } from './utils/saveGa
 
 type AppScreen = GameScreen | 'settings'
 
+
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>('menu')
   const [imageDataUrl, setImageDataUrl] = useState('')
@@ -18,11 +19,6 @@ export default function App() {
   const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
 
   const { settings, setSettings, resetSettings } = useSettings()
-
-  // Apply background colour globally
-  useEffect(() => {
-    document.body.style.background = settings.backgroundColor
-  }, [settings.backgroundColor])
 
   const handleImageSelected = (dataUrl: string, name: string) => {
     setImageDataUrl(dataUrl)
@@ -34,13 +30,12 @@ export default function App() {
     const img = new Image()
     img.src = imageDataUrl
     img.onload = () => {
-      setActiveSave(null)  // fresh game — no save to restore
+      setActiveSave(null)
       setPuzzleConfig({
         imageDataUrl,
         imageWidth: img.naturalWidth,
         imageHeight: img.naturalHeight,
-        cols: 0,
-        rows: 0,
+        cols: 0, rows: 0,
         pieceCount,
       })
       setScreen('game')
@@ -48,10 +43,8 @@ export default function App() {
   }
 
   const handleContinue = () => {
-    if (activeSave) {
-      setPuzzleConfig(activeSave.config)
-      setScreen('game')
-    }
+    if (activeSave) { setPuzzleConfig(activeSave.config); setScreen('game') }
+    else if (puzzleConfig) setScreen('game')
   }
 
   const handleLoadSave = (id: string) => {
@@ -62,70 +55,59 @@ export default function App() {
     setScreen('game')
   }
 
-  const handleSavesChange = (updated: SaveMeta[]) => setSaves(updated)
-
   const handleSaveGame = (save: SaveData) => {
     setActiveSave(save)
     setSaves(listSaves())
   }
 
-  const handleBackToMenu = () => {
-    setScreen('menu')
-    // keep puzzleConfig/activeSave so Continue works
+  const handleBackToMenu = () => setScreen('menu')
+
+  const appStyle: React.CSSProperties = {
+    filter: settings.brightness !== 100 ? `brightness(${settings.brightness / 100})` : undefined,
   }
 
-  // brightness as CSS filter on the game wrapper
-  const brightnessFilter = settings.brightness !== 1
-    ? `brightness(${settings.brightness})`
-    : undefined
-
   return (
-    <div
-      className="w-full h-full relative overflow-hidden"
-      style={{ background: settings.backgroundColor }}
-    >
-      <div className="w-full h-full" style={{ filter: brightnessFilter }}>
-        {screen === 'menu' && (
-          <MainMenu
-            onNewGame={handleImageSelected}
-            onContinue={handleContinue}
-            onLoadSave={handleLoadSave}
-            onSettings={() => setScreen('settings')}
-            canContinue={!!activeSave || !!puzzleConfig}
-            saves={saves}
-            onSavesChange={handleSavesChange}
-          />
-        )}
+    <div className="app" data-theme={settings.theme} style={appStyle}>
+      {screen === 'menu' && (
+        <MainMenu
+          onNewGame={handleImageSelected}
+          onContinue={handleContinue}
+          onLoadSave={handleLoadSave}
+          onSettings={() => setScreen('settings')}
+          canContinue={!!activeSave || !!puzzleConfig}
+          saves={saves}
+          onSavesChange={setSaves}
+        />
+      )}
 
-        {screen === 'setup' && (
-          <SetupScreen
-            imageDataUrl={imageDataUrl}
-            imageName={imageName}
-            onStart={handleStart}
-            onBack={() => setScreen('menu')}
-          />
-        )}
+      {screen === 'setup' && (
+        <SetupScreen
+          imageDataUrl={imageDataUrl}
+          imageName={imageName}
+          onStart={handleStart}
+          onBack={() => setScreen('menu')}
+        />
+      )}
 
-        {screen === 'game' && puzzleConfig && (
-          <PuzzleGame
-            config={puzzleConfig}
-            savedState={activeSave?.pieces ?? null}
-            savedElapsed={activeSave?.elapsed ?? 0}
-            settings={settings}
-            onBackToMenu={handleBackToMenu}
-            onSave={handleSaveGame}
-          />
-        )}
+      {screen === 'game' && puzzleConfig && (
+        <PuzzleGame
+          config={puzzleConfig}
+          savedState={activeSave?.pieces ?? null}
+          savedElapsed={activeSave?.elapsed ?? 0}
+          settings={settings}
+          onBackToMenu={handleBackToMenu}
+          onSave={handleSaveGame}
+        />
+      )}
 
-        {screen === 'settings' && (
-          <SettingsScreen
-            settings={settings}
-            onChange={setSettings}
-            onReset={resetSettings}
-            onBack={() => setScreen('menu')}
-          />
-        )}
-      </div>
+      {screen === 'settings' && (
+        <SettingsScreen
+          settings={settings}
+          onChange={setSettings}
+          onReset={resetSettings}
+          onBack={() => setScreen('menu')}
+        />
+      )}
     </div>
   )
 }

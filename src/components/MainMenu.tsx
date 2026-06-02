@@ -14,34 +14,34 @@ interface MainMenuProps {
 
 type View = 'main' | 'load'
 
-function MenuBtn({
-  onClick, children, disabled = false, primary = false, danger = false
-}: {
-  onClick: () => void; children: React.ReactNode; disabled?: boolean; primary?: boolean; danger?: boolean
-}) {
+const PIECE_COLORS = ['#FF7A4D', '#36C5C0', '#8C6BFF', '#FFC23C']
+const PIECE_ROTS   = ['-8deg', '5deg', '-4deg', '9deg']
+
+function MiniPiece({ color }: { color: string }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        w-64 py-3 rounded-xl text-base font-semibold transition-all duration-150 select-none
-        ${disabled
-          ? 'bg-white/5 text-gray-600 cursor-not-allowed border border-white/5'
-          : primary
-            ? 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white border border-blue-500/50 shadow-lg shadow-blue-900/30'
-            : danger
-              ? 'bg-red-900/30 hover:bg-red-700/50 text-red-300 border border-red-700/30'
-              : 'bg-white/5 hover:bg-white/10 active:bg-white/15 text-gray-200 border border-white/8'
-        }
-      `}
-    >
-      {children}
-    </button>
+    <svg viewBox="0 0 40 40" width="26" height="26">
+      <path
+        d="M9 6h8a3 3 0 0 1 6 0h8v8a3 3 0 0 1 0 6v8h-8a3 3 0 0 0-6 0H9v-8a3 3 0 0 0 0-6V6z"
+        fill={color} stroke="rgba(0,0,0,.25)" strokeWidth="1.4"
+      />
+    </svg>
   )
 }
 
+function Icon({ name, size = 20 }: { name: string; size?: number }) {
+  const s = { width: size, height: size, fill: 'none' as const, stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  const paths: Record<string, React.ReactNode> = {
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    play: <polygon points="6 4 20 12 6 20" fill="currentColor" stroke="none" />,
+    folder: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+    gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 12a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7.3 7.3 0 0 0-1.7-1l-.4-2.5H10l-.4 2.5a7.3 7.3 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.3 7.3 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.3 7.3 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.06-.33.1-.66.1-1z" /></>,
+    trash: <><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" /></>,
+  }
+  return <svg viewBox="0 0 24 24" {...s}>{paths[name]}</svg>
+}
+
 function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings, canContinue, saves, onSavesChange }: MainMenuProps) {
@@ -52,7 +52,7 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = (e) => onNewGame(e.target?.result as string, file.name)
+    reader.onload = e => onNewGame(e.target?.result as string, file.name)
     reader.readAsDataURL(file)
   }
 
@@ -67,10 +67,8 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
   }
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
+    e.preventDefault(); setIsDragging(false)
+    const f = e.dataTransfer.files[0]; if (f) handleFile(f)
   }
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
@@ -81,95 +79,110 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
 
   if (view === 'load') {
     return (
-      <div className="flex flex-col items-center justify-start w-full h-full pt-16 px-8 gap-6">
-        <button onClick={() => setView('main')} className="absolute top-6 left-6 text-gray-400 hover:text-white text-sm transition-colors">
-          ← Back
-        </button>
-        <h2 className="text-2xl font-bold text-white">Saved Puzzles</h2>
-        {saves.length === 0 ? (
-          <p className="text-gray-500 mt-8">No saved puzzles yet.</p>
-        ) : (
-          <div className="flex flex-col gap-3 w-full max-w-lg overflow-y-auto">
+      <div className="screen scroll fade-in">
+        <div className="topbar">
+          <button className="back-link" onClick={() => setView('main')}>← Back</button>
+        </div>
+        <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8 }}>
+          <h1 className="page-title">Saved Puzzles</h1>
+          <div className="saved-list">
+            {saves.length === 0 && (
+              <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
+                No saved puzzles yet.
+              </div>
+            )}
             {saves.map(save => (
-              <button
-                key={save.id}
-                onClick={() => onLoadSave(save.id)}
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/8 hover:bg-white/10 hover:border-white/20 transition-all text-left group"
-              >
+              <div key={save.id} className="saved-item" onClick={() => onLoadSave(save.id)}>
                 {save.thumbnailUrl
-                  ? <img src={save.thumbnailUrl} alt="" className="w-16 h-12 rounded-lg object-cover border border-white/10 shrink-0" />
-                  : <div className="w-16 h-12 rounded-lg bg-white/5 border border-white/10 shrink-0" />
+                  ? <img className="saved-thumb" src={save.thumbnailUrl} alt="" />
+                  : <div className="saved-thumb" style={{ background: 'var(--surface-2)' }} />
                 }
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white truncate">{save.imageName}</div>
-                  <div className="text-xs text-gray-400">
-                    {save.pieceCount.toLocaleString()} pieces · {save.placedCount}/{save.pieceCount} placed
+                <div className="saved-meta">
+                  <div className="t">{save.imageName}</div>
+                  <div className="s">{save.pieceCount.toLocaleString()} pieces · {formatDate(save.updatedAt)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <span className="mini-bar"><i style={{ width: `${(save.placedCount / save.pieceCount) * 100}%` }} /></span>
+                    <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>{save.placedCount}/{save.pieceCount}</span>
                   </div>
-                  <div className="text-xs text-gray-600 mt-0.5">{formatDate(save.updatedAt)}</div>
                 </div>
                 <button
+                  className="btn btn-icon btn-ghost"
+                  title="Delete"
                   onClick={e => handleDelete(save.id, e)}
-                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded transition-all"
-                  title="Delete save"
                 >
-                  ✕
+                  <Icon name="trash" size={18} />
                 </button>
-              </button>
+              </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-10">
-      {/* Title */}
-      <div className="flex flex-col items-center gap-2 select-none">
-        <h1 className="text-7xl font-black tracking-tight text-white">JIGSAW</h1>
-        <p className="text-gray-500 text-sm tracking-widest uppercase">Turn any image into a puzzle</p>
-      </div>
-
-      {/* Menu buttons */}
-      <div className="flex flex-col items-center gap-3">
-        {/* New game — drop zone */}
-        <div
-          onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          onClick={handleElectronOpen}
-          className={`
-            w-64 py-3 rounded-xl text-base font-semibold transition-all duration-150 cursor-pointer select-none
-            flex items-center justify-center gap-2 border
-            ${isDragging
-              ? 'bg-blue-600/40 border-blue-400 text-white scale-[1.02]'
-              : 'bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white border-blue-500/50 shadow-lg shadow-blue-900/30'
-            }
-          `}
-        >
-          🖼️ New Puzzle
+    <div className="screen fade-in">
+      <div className="center-col">
+        {/* Brand */}
+        <div className="brand-wrap">
+          <div className="brand-mark">
+            {PIECE_COLORS.map((c, i) => (
+              <span key={i} className="pc" style={{ '--rot': PIECE_ROTS[i], background: c } as React.CSSProperties}>
+                <MiniPiece color="#fff" />
+              </span>
+            ))}
+          </div>
+          <div className="brand-title">
+            JIGSA<span className="o">W</span>
+          </div>
+          <div className="brand-sub">Turn any photo into a puzzle</div>
         </div>
 
-        <MenuBtn onClick={onContinue} disabled={!canContinue}>
-          ▶ Continue
-        </MenuBtn>
+        {/* Menu buttons */}
+        <div className="menu-stack">
+          <div
+            onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={handleElectronOpen}
+            className={`btn btn-primary btn-lg${isDragging ? ' btn-block' : ''}`}
+            style={{ cursor: 'pointer', justifyContent: 'flex-start', paddingLeft: 24, width: '100%', transition: 'all .15s' }}
+          >
+            <Icon name="plus" /> New Puzzle
+          </div>
 
-        <MenuBtn onClick={() => setView('load')} disabled={saves.length === 0}>
-          📂 Load Saved {saves.length > 0 && <span className="text-xs opacity-60 ml-1">({saves.length})</span>}
-        </MenuBtn>
+          <button
+            className="btn btn-lg"
+            onClick={onContinue}
+            disabled={!canContinue}
+          >
+            <Icon name="play" /> Continue
+          </button>
 
-        <MenuBtn onClick={onSettings}>
-          ⚙️ Settings
-        </MenuBtn>
+          <button
+            className="btn btn-lg"
+            onClick={() => setView('load')}
+            disabled={saves.length === 0}
+          >
+            <Icon name="folder" /> Load Saved
+            {saves.length > 0 && <span className="badge">{saves.length}</span>}
+          </button>
+
+          <button className="btn btn-lg" onClick={onSettings}>
+            <Icon name="gear" /> Settings
+          </button>
+        </div>
+
+        <div style={{ color: 'var(--text-dim)', fontSize: '.82rem', marginTop: 6, textAlign: 'center' }}>
+          Scroll / pinch to zoom · drag to pan · right-click a piece → tray
+        </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept="image/*"
+      <input
+        ref={fileInputRef} type="file" accept="image/*"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-        className="hidden" />
-
-      <p className="text-gray-700 text-xs absolute bottom-4 select-none">
-        Scroll / pinch to zoom · Drag to pan · Right-click piece → tray
-      </p>
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }

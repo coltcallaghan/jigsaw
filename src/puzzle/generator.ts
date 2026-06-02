@@ -1,4 +1,12 @@
 import type { EdgeType, PieceDefinition, PieceEdges, PuzzleConfig } from './types'
+import type { Theme } from '../hooks/useSettings'
+
+const THEME_EDGE: Record<Theme, { color: string; width: number }> = {
+  cartoon: { color: 'rgba(43,43,43,.55)',    width: 1.5 },
+  modern:  { color: 'rgba(17,24,39,.12)',    width: 0.8 },
+  dark:    { color: 'rgba(255,255,255,.25)', width: 1.0 },
+  arcade:  { color: 'rgba(7,242,230,.6)',    width: 1.5 },
+}
 
 // Deterministic seeded PRNG (mulberry32)
 function mulberry32(seed: number) {
@@ -175,7 +183,9 @@ function edgePath(
  */
 export async function renderPieceTextures(
   image: HTMLImageElement,
-  pieces: PieceDefinition[]
+  pieces: PieceDefinition[],
+  theme: Theme = 'dark',
+  outlines = true
 ): Promise<Map<number, ImageBitmap>> {
   const result = new Map<number, ImageBitmap>()
 
@@ -209,12 +219,18 @@ export async function renderPieceTextures(
 
       ctx.drawImage(image, imgSrcX, imgSrcY, imgSrcW, imgSrcH, dstX, dstY, imgSrcW, imgSrcH)
 
-      // Thin border for depth
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)'
-      ctx.lineWidth = 1
-      ctx.stroke(path)
-
       ctx.restore()
+
+      // Theme-aware edge stroke drawn outside clip so tabs are fully outlined
+      if (outlines) {
+        const edge = THEME_EDGE[theme]
+        ctx.save()
+        ctx.translate(pad, pad)
+        ctx.strokeStyle = edge.color
+        ctx.lineWidth = edge.width
+        ctx.stroke(path)
+        ctx.restore()
+      }
 
       const bitmap = await createImageBitmap(canvas)
       result.set(piece.id, bitmap)

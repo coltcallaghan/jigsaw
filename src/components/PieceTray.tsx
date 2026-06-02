@@ -1,73 +1,72 @@
-import React, { useCallback } from 'react'
+import React from 'react'
+import type { PieceDefinition } from '../puzzle/types'
+import type { Theme } from '../hooks/useSettings'
+import { buildPiecePath } from '../puzzle/generator'
 
 interface PieceTrayProps {
   pieceIds: number[]
+  pieces: PieceDefinition[]
   imageDataUrl: string
-  pieceWidth: number
-  pieceHeight: number
-  cols: number
+  imageWidth: number
+  imageHeight: number
+  theme: Theme
   onRetrieve: (id: number) => void
-  onSendAll: () => void
 }
 
-export default function PieceTray({
-  pieceIds,
-  imageDataUrl,
-  pieceWidth,
-  pieceHeight,
-  cols,
-  onRetrieve,
-  onSendAll,
-}: PieceTrayProps) {
-  const thumbSize = 56
-  const scale = thumbSize / Math.max(pieceWidth, pieceHeight)
+const TAB_PAD = 0.38
 
-  if (pieceIds.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm gap-2">
-        <span className="text-2xl">📦</span>
-        <span>Tray is empty</span>
-      </div>
-    )
-  }
+export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, imageHeight, theme, onRetrieve }: PieceTrayProps) {
+  const defMap = React.useMemo(() => {
+    const m = new Map<number, PieceDefinition>()
+    for (const p of pieces) m.set(p.id, p)
+    return m
+  }, [pieces])
+
+  // Light themes need a dark stroke; dark themes need a light stroke
+  const edgeStroke = theme === 'cartoon' || theme === 'modern'
+    ? 'rgba(43,43,43,.45)'
+    : 'rgba(255,255,255,.45)'
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-2 py-1 border-b border-navy-700">
-        <span className="text-xs text-gray-400">{pieceIds.length} pieces</span>
-        <button
-          onClick={onSendAll}
-          className="text-xs text-blue-400 hover:text-blue-200 transition-colors"
-        >
-          Scatter all
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-2 grid grid-cols-3 gap-1 content-start">
-        {pieceIds.map((id) => {
-          const row = Math.floor(id / cols)
-          const col = id % cols
-          return (
-            <button
-              key={id}
-              onClick={() => onRetrieve(id)}
-              title={`Piece ${id + 1} (row ${row + 1}, col ${col + 1})`}
-              className="relative rounded overflow-hidden border border-navy-700 hover:border-blue-400 transition-colors"
-              style={{ width: thumbSize, height: thumbSize }}
-            >
-              <div
-                style={{
-                  width: pieceWidth * scale,
-                  height: pieceHeight * scale,
-                  backgroundImage: `url(${imageDataUrl})`,
-                  backgroundSize: `${cols * pieceWidth * scale}px auto`,
-                  backgroundPosition: `-${col * pieceWidth * scale}px -${row * pieceHeight * scale}px`,
-                  transform: `translate(${(thumbSize - pieceWidth * scale) / 2}px, ${(thumbSize - pieceHeight * scale) / 2}px)`,
-                }}
-              />
-            </button>
-          )
-        })}
-      </div>
+    <div className="tray-body">
+      {pieceIds.length === 0 && (
+        <div className="tray-empty">Tray is empty.<br />Right-click a piece to stash it.</div>
+      )}
+      {pieceIds.map(id => {
+        const def = defMap.get(id)
+        if (!def) return null
+        const { srcX, srcY, srcW, srcH, edges } = def
+        const pad = Math.max(srcW, srcH) * TAB_PAD
+        const vbW = srcW + pad * 2
+        const vbH = srcH + pad * 2
+        const path = buildPiecePath(edges, srcW, srcH)
+        const clipId = `tc-${id}`
+        return (
+          <div
+            key={id}
+            className="tray-slot"
+            title={`Piece ${id + 1} — click to return`}
+            onClick={() => onRetrieve(id)}
+          >
+            <svg viewBox={`${-pad} ${-pad} ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <clipPath id={clipId}>
+                  <path d={path} />
+                </clipPath>
+              </defs>
+              <g clipPath={`url(#${clipId})`}>
+                <image
+                  href={imageDataUrl}
+                  x={-srcX} y={-srcY}
+                  width={imageWidth} height={imageHeight}
+                  preserveAspectRatio="none"
+                />
+              </g>
+              <path d={path} fill="none" stroke={edgeStroke} strokeWidth={Math.max(srcW, srcH) * 0.014} />
+            </svg>
+          </div>
+        )
+      })}
     </div>
   )
 }

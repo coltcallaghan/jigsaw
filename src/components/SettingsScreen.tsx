@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import type { GameSettings } from '../hooks/useSettings'
+import type { GameSettings, Theme } from '../hooks/useSettings'
+
+const THEMES: { id: Theme; label: string; color: string }[] = [
+  { id: 'cartoon', label: 'Cartoon', color: '#FF7A4D' },
+  { id: 'modern',  label: 'Modern',  color: '#4F46E5' },
+  { id: 'dark',    label: 'Dark',    color: '#6C8CFF' },
+  { id: 'arcade',  label: 'Arcade',  color: '#FF2E97' },
+]
 
 interface SettingsScreenProps {
   settings: GameSettings
@@ -10,155 +17,136 @@ interface SettingsScreenProps {
 
 type Tab = 'visual' | 'audio' | 'gameplay'
 
-const BACKGROUND_PRESETS = [
-  { label: 'Midnight', value: '#1a1a2e' },
-  { label: 'Ocean', value: '#0d1b2a' },
-  { label: 'Forest', value: '#0f1f0f' },
-  { label: 'Dusk', value: '#1f0d2a' },
-  { label: 'Slate', value: '#1c1c2e' },
-  { label: 'Warm', value: '#1f1510' },
-]
-
-function Row({ label, children, sub }: { label: string; children: React.ReactNode; sub?: string }) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-white/5">
-      <div>
-        <div className="text-sm text-white">{label}</div>
-        {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
-      </div>
-      <div className="flex items-center gap-2">{children}</div>
-    </div>
-  )
-}
-
-function Slider({ value, min, max, step, onChange }: {
-  value: number; min: number; max: number; step: number; onChange: (v: number) => void
-}) {
-  return (
-    <input
-      type="range" min={min} max={max} step={step} value={value}
-      onChange={e => onChange(parseFloat(e.target.value))}
-      className="w-28 accent-blue-400"
-    />
-  )
-}
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <button
-      onClick={() => onChange(!value)}
-      className={`relative w-10 h-6 rounded-full transition-colors ${value ? 'bg-blue-500' : 'bg-gray-600'}`}
+      onClick={onClick}
+      style={{
+        width: 52, height: 30, borderRadius: 999,
+        border: 'var(--border-w) solid var(--ink)',
+        background: on ? 'var(--primary)' : 'var(--surface-2)',
+        position: 'relative', cursor: 'pointer', transition: '.2s', flexShrink: 0,
+      }}
     >
-      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${value ? 'left-5' : 'left-1'}`} />
+      <span style={{
+        position: 'absolute', top: 2, left: on ? 24 : 2,
+        width: 22, height: 22, borderRadius: '50%', background: '#fff',
+        transition: '.2s', boxShadow: '0 1px 3px rgba(0,0,0,.4)',
+      }} />
     </button>
   )
 }
-
-const STUB = (
-  <span className="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-0.5">
-    Not yet implemented
-  </span>
-)
 
 export default function SettingsScreen({ settings, onChange, onReset, onBack }: SettingsScreenProps) {
   const [tab, setTab] = useState<Tab>('visual')
-
-  const tabBtn = (t: Tab, label: string) => (
-    <button
-      onClick={() => setTab(t)}
-      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-        tab === t ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
-      }`}
-    >
-      {label}
-    </button>
-  )
+  const set = <K extends keyof GameSettings>(k: K, v: GameSettings[K]) => onChange({ [k]: v } as Partial<GameSettings>)
 
   return (
-    <div className="flex flex-col w-full h-full items-center justify-start pt-8 px-4">
-      <button onClick={onBack} className="absolute top-6 left-6 text-gray-400 hover:text-white text-sm transition-colors">
-        ← Back
-      </button>
-
-      <h2 className="text-2xl font-bold text-white mb-6">Settings</h2>
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 bg-white/5 rounded-xl p-1">
-        {tabBtn('visual', '🎨 Visual')}
-        {tabBtn('audio', '🔊 Audio')}
-        {tabBtn('gameplay', '🎮 Gameplay')}
+    <div className="screen scroll fade-in">
+      <div className="topbar">
+        <button className="back-link" onClick={onBack}>← Back</button>
       </div>
 
-      {/* Tab content */}
-      <div className="w-full max-w-lg bg-white/3 rounded-2xl border border-white/8 p-6 flex flex-col">
-        {tab === 'visual' && <>
-          <Row label="Background colour">
-            <div className="flex gap-1.5 flex-wrap justify-end">
-              {BACKGROUND_PRESETS.map(p => (
-                <button
-                  key={p.value}
-                  onClick={() => onChange({ backgroundColor: p.value })}
-                  title={p.label}
-                  className={`w-7 h-7 rounded-lg border-2 transition-all ${
-                    settings.backgroundColor === p.value ? 'border-blue-400 scale-110' : 'border-white/10 hover:border-white/40'
-                  }`}
-                  style={{ background: p.value }}
-                />
-              ))}
+      <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8, gap: 24 }}>
+        <h1 className="page-title">Settings</h1>
+
+        <div className="tabs">
+          {(['visual', 'audio', 'gameplay'] as Tab[]).map(t => (
+            <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="card" style={{ width: 'min(560px, 94vw)' }}>
+          {tab === 'visual' && <>
+            <div className="setting-row">
+              <div>
+                <div className="lab">Theme</div>
+                <div className="desc">Visual style and colour palette</div>
+              </div>
+              <div className="swatch-row">
+                {THEMES.map(t => (
+                  <span
+                    key={t.id}
+                    className={`swatch${settings.theme === t.id ? ' sel' : ''}`}
+                    style={{ background: t.color }}
+                    onClick={() => set('theme', t.id)}
+                    title={t.label}
+                  />
+                ))}
+              </div>
             </div>
-          </Row>
+            <div className="setting-row">
+              <div>
+                <div className="lab">Brightness</div>
+                <div className="desc">Adjusts overall screen brightness</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontFamily: 'var(--font-head)', minWidth: 44, textAlign: 'right' }}>{settings.brightness}%</span>
+                <input className="rng" type="range" min="60" max="120" value={settings.brightness} style={{ width: 150 }}
+                  onChange={e => set('brightness', parseInt(e.target.value))} />
+              </div>
+            </div>
+            <div className="setting-row">
+              <div>
+                <div className="lab">Piece edge outlines</div>
+                <div className="desc">Subtle stroke around each piece</div>
+              </div>
+              <Toggle on={settings.outlines} onClick={() => set('outlines', !settings.outlines)} />
+            </div>
+          </>}
 
-          <Row label="Brightness" sub="Adjusts the overall screen brightness">
-            <span className="text-xs text-gray-500 w-8 text-right">{Math.round(settings.brightness * 100)}%</span>
-            <Slider value={settings.brightness} min={0.4} max={1.6} step={0.05}
-              onChange={v => onChange({ brightness: v })} />
-          </Row>
-        </>}
+          {tab === 'audio' && <>
+            <div style={{ padding: '14px 22px', fontSize: '.85rem', color: 'var(--text-dim)', borderBottom: 'var(--border-w) solid var(--ink)' }}>
+              Audio is not yet implemented. See AUDIO_NOTES.md.
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Master volume</div></div>
+              <input className="rng" type="range" min="0" max="100" value={settings.masterVolume} style={{ width: 170 }}
+                onChange={e => set('masterVolume', parseInt(e.target.value))} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Snap sound effects</div><div className="desc">Satisfying click when a piece locks</div></div>
+              <Toggle on={settings.sfxEnabled} onClick={() => set('sfxEnabled', !settings.sfxEnabled)} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Background music</div></div>
+              <Toggle on={settings.musicEnabled} onClick={() => set('musicEnabled', !settings.musicEnabled)} />
+            </div>
+          </>}
 
-        {tab === 'audio' && <>
-          <div className="mb-4 text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3">
-            Audio is not yet implemented. Volume sliders are saved but have no effect until music and sound effects are added.
-          </div>
-          <Row label="Master volume">
-            <span className="text-xs text-gray-500 w-8 text-right">{Math.round(settings.masterVolume * 100)}%</span>
-            <Slider value={settings.masterVolume} min={0} max={1} step={0.05}
-              onChange={v => onChange({ masterVolume: v })} />
-          </Row>
-          <Row label="Music volume">
-            <span className="text-xs text-gray-500 w-8 text-right">{Math.round(settings.musicVolume * 100)}%</span>
-            <Slider value={settings.musicVolume} min={0} max={1} step={0.05}
-              onChange={v => onChange({ musicVolume: v })} />
-          </Row>
-          <Row label="SFX volume" sub="Piece snap, completion sounds">
-            <span className="text-xs text-gray-500 w-8 text-right">{Math.round(settings.sfxVolume * 100)}%</span>
-            <Slider value={settings.sfxVolume} min={0} max={1} step={0.05}
-              onChange={v => onChange({ sfxVolume: v })} />
-          </Row>
-        </>}
+          {tab === 'gameplay' && <>
+            <div className="setting-row">
+              <div>
+                <div className="lab">Snap assist</div>
+                <div className="desc">How close a piece must be to lock in</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontFamily: 'var(--font-head)', minWidth: 64 }}>
+                  {settings.snapSensitivity < 22 ? 'Precise' : settings.snapSensitivity > 40 ? 'Generous' : 'Normal'}
+                </span>
+                <input className="rng" type="range" min="14" max="52" value={settings.snapSensitivity} style={{ width: 140 }}
+                  onChange={e => set('snapSensitivity', parseInt(e.target.value))} />
+              </div>
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Ghost image on by default</div><div className="desc">Faint reference image behind the board</div></div>
+              <Toggle on={settings.ghostDefault} onClick={() => set('ghostDefault', !settings.ghostDefault)} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Show timer</div></div>
+              <Toggle on={settings.showTimer} onClick={() => set('showTimer', !settings.showTimer)} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Show piece count</div></div>
+              <Toggle on={settings.showPieceCount} onClick={() => set('showPieceCount', !settings.showPieceCount)} />
+            </div>
+          </>}
+        </div>
 
-        {tab === 'gameplay' && <>
-          <Row label="Snap sensitivity" sub="How close a piece needs to be to snap">
-            <span className="text-xs text-gray-500 w-10 text-right">
-              {settings.snapSensitivity < 0.4 ? 'Tight' : settings.snapSensitivity > 0.65 ? 'Loose' : 'Normal'}
-            </span>
-            <Slider value={settings.snapSensitivity} min={0.3} max={0.8} step={0.05}
-              onChange={v => onChange({ snapSensitivity: v })} />
-          </Row>
-          <Row label="Show timer">
-            <Toggle value={settings.showTimer} onChange={v => onChange({ showTimer: v })} />
-          </Row>
-          <Row label="Show piece count">
-            <Toggle value={settings.showPieceCount} onChange={v => onChange({ showPieceCount: v })} />
-          </Row>
-        </>}
+        <button className="back-link" onClick={onReset}>Reset to defaults</button>
       </div>
-
-      <button
-        onClick={onReset}
-        className="mt-4 text-xs text-gray-600 hover:text-gray-400 transition-colors"
-      >
-        Reset to defaults
-      </button>
     </div>
   )
 }

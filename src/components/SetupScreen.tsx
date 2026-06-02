@@ -9,86 +9,102 @@ interface SetupScreenProps {
   onBack: () => void
 }
 
-const DIFFICULTY_LABELS: Record<number, string> = {
-  10: 'Kids',
-  50: 'Casual',
-  100: 'Beginner',
-  500: 'Easy',
-  1000: 'Medium',
-  2000: 'Hard',
-  5000: 'Expert',
-  10000: 'Master',
-}
+const DIFFICULTIES: { count: PieceCountOption; label: string; time: string }[] = [
+  { count: 10,    label: 'Kids',     time: '2–5 min' },
+  { count: 50,    label: 'Casual',   time: '5–15 min' },
+  { count: 100,   label: 'Beginner', time: '15–30 min' },
+  { count: 500,   label: 'Easy',     time: '1–3 hrs' },
+  { count: 1000,  label: 'Medium',   time: '3–6 hrs' },
+  { count: 2000,  label: 'Hard',     time: '6–12 hrs' },
+  { count: 5000,  label: 'Expert',   time: '1–3 days' },
+  { count: 10000, label: 'Master',   time: '3–7 days' },
+]
 
-const ESTIMATED_TIME: Record<number, string> = {
-  10: '2–5 min',
-  50: '5–15 min',
-  100: '15–30 min',
-  500: '1–3 hrs',
-  1000: '3–6 hrs',
-  2000: '6–12 hrs',
-  5000: '1–3 days',
-  10000: '3–7 days',
+function Icon({ name, size = 20 }: { name: string; size?: number }) {
+  const s = { width: size, height: size, fill: 'none' as const, stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  const paths: Record<string, React.ReactNode> = {
+    image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5L5 20" /></>,
+    sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" fill="currentColor" stroke="none" />,
+  }
+  return <svg viewBox="0 0 24 24" {...s}>{paths[name]}</svg>
 }
 
 export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }: SetupScreenProps) {
-  const [selected, setSelected] = useState<PieceCountOption>(500)
+  const [selected, setSelected] = useState<PieceCountOption>(100)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    // image is already loaded — we'd need to call back up, but for now just trigger browse
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full gap-8 px-8">
-      {/* Back */}
-      <button
-        onClick={onBack}
-        className="absolute top-6 left-6 text-gray-400 hover:text-white transition-colors text-sm"
-      >
-        ← Back
-      </button>
+    <div className="screen scroll fade-in">
+      <div className="topbar">
+        <button className="back-link" onClick={onBack}>← Back</button>
+      </div>
 
-      <h2 className="text-2xl font-bold text-white">Choose Difficulty</h2>
+      <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8 }}>
+        <h1 className="page-title">New Puzzle</h1>
 
-      {/* Image preview */}
-      <div className="rounded-xl overflow-hidden border border-navy-700 shadow-lg max-w-xs">
-        <img
-          src={imageDataUrl}
-          alt="Puzzle preview"
-          className="w-full max-h-48 object-cover"
-        />
-        <div className="px-3 py-2 text-xs text-gray-400 truncate" title={imageName}>
-          {imageName}
+        <div className="setup-grid">
+          {/* Left: image preview */}
+          <div>
+            <div className={`dropzone${imageDataUrl ? ' has-img' : ''}`}
+              onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {imageDataUrl
+                ? <img src={imageDataUrl} alt="Puzzle" />
+                : <>
+                    <div style={{ fontSize: 40 }}><Icon name="image" size={40} /></div>
+                    <div className="dz-hint">Drop a photo here<br />or click to browse</div>
+                  </>
+              }
+              {imageDataUrl && <div className="dz-replace">Replace image</div>}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 10 }}>
+              <span style={{ color: 'var(--text-dim)', fontSize: '.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                {imageName || 'No image selected'}
+              </span>
+            </div>
+
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+          </div>
+
+          {/* Right: difficulty */}
+          <div>
+            <h3 style={{ marginBottom: 14, fontSize: '1.15rem', fontFamily: 'var(--font-head)' }}>Choose difficulty</h3>
+            <div className="diff-grid">
+              {DIFFICULTIES.map(d => (
+                <div
+                  key={d.count}
+                  className={`diff-card${selected === d.count ? ' sel' : ''}`}
+                  onClick={() => setSelected(d.count)}
+                >
+                  <div className="num">{d.count.toLocaleString()}</div>
+                  <div className="lab">{d.label}</div>
+                  <div className="tm">{d.time}</div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn btn-primary btn-lg btn-block"
+              style={{ marginTop: 22, justifyContent: 'center' }}
+              disabled={!imageDataUrl}
+              onClick={() => onStart(selected)}
+            >
+              <Icon name="sparkle" /> Start Puzzle — {selected.toLocaleString()} pieces
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Piece count grid */}
-      <div className="grid grid-cols-4 gap-3 w-full max-w-xl">
-        {PIECE_COUNT_OPTIONS.map((count) => {
-          const isSelected = selected === count
-          return (
-            <button
-              key={count}
-              onClick={() => setSelected(count)}
-              className={`flex flex-col items-center gap-1 rounded-xl p-4 border-2 transition-all ${
-                isSelected
-                  ? 'border-blue-500 bg-blue-600/20 text-white'
-                  : 'border-navy-700 bg-navy-800 text-gray-400 hover:border-blue-700 hover:text-white'
-              }`}
-            >
-              <span className="text-2xl font-bold">{count.toLocaleString()}</span>
-              <span className="text-xs font-semibold uppercase tracking-wide">
-                {DIFFICULTY_LABELS[count]}
-              </span>
-              <span className="text-xs opacity-60">{ESTIMATED_TIME[count]}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Start button */}
-      <button
-        onClick={() => onStart(selected)}
-        className="px-10 py-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 rounded-xl text-white text-lg font-semibold shadow-lg transition-colors"
-      >
-        Start Puzzle — {selected.toLocaleString()} pieces
-      </button>
     </div>
   )
 }

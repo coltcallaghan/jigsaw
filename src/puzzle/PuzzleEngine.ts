@@ -9,6 +9,7 @@ import {
 import type { PieceDefinition, PuzzleConfig } from './types'
 import { buildPiecePath, computeGrid, generatePieces, renderPieceTextures } from './generator'
 import type { PieceState } from '../utils/saveGame'
+import type { Theme } from '../hooks/useSettings'
 
 let SNAP_DISTANCE = 0.5  // fraction of piece size to trigger snap — overridable via setSnapSensitivity()
 const TAB_PAD_FRAC = 0.35 * 1.5
@@ -16,6 +17,8 @@ const TAB_PAD_FRAC = 0.35 * 1.5
 export interface PuzzleEngineOptions {
   canvas: HTMLCanvasElement
   config: PuzzleConfig
+  theme: Theme
+  outlines: boolean
   onProgress: (placed: number, total: number) => void
   onComplete: () => void
   onTrayUpdate: (pieceIds: number[]) => void
@@ -55,6 +58,8 @@ export class PuzzleEngine {
   private onComplete: () => void
   private onTrayUpdate: (pieceIds: number[]) => void
   private onReady: () => void
+  private theme: Theme = 'dark'
+  private outlines = true
 
   // Pan state
   private isPanning = false
@@ -80,6 +85,8 @@ export class PuzzleEngine {
     this.onComplete = opts.onComplete
     this.onTrayUpdate = opts.onTrayUpdate
     this.onReady = opts.onReady
+    this.theme = opts.theme
+    this.outlines = opts.outlines
 
     this.app = new Application()
     this.board = new Container()
@@ -127,7 +134,7 @@ export class PuzzleEngine {
     await new Promise<void>((resolve) => { img.onload = () => resolve() })
 
     // Render textures
-    const bitmaps = await renderPieceTextures(img, this.definitions)
+    const bitmaps = await renderPieceTextures(img, this.definitions, this.theme, this.outlines)
 
     // Set up board container with initial centering
     this.board.addChild(this.ghostLayer)
@@ -673,8 +680,15 @@ export class PuzzleEngine {
       }
     }
 
-    // Neon green stroke only — no fill
-    g.stroke({ color: 0x39ff14, width: 2.5, alpha: 0.9 })
+    // Theme-appropriate placement highlight
+    const placedStyle: Record<Theme, { color: number; width: number; alpha: number }> = {
+      cartoon: { color: 0x2B2B2B, width: 2,   alpha: 0.30 },
+      modern:  { color: 0x111827, width: 1,   alpha: 0.12 },
+      dark:    { color: 0xEAEEF7, width: 1.5, alpha: 0.20 },
+      arcade:  { color: 0x07F2E6, width: 2,   alpha: 0.55 },
+    }
+    const ps = placedStyle[this.theme]
+    g.stroke({ color: ps.color, width: ps.width, alpha: ps.alpha })
 
     sprite.addChild(g)
   }
