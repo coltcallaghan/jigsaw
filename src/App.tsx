@@ -95,6 +95,7 @@ export default function App() {
           savedState={activeSave?.pieces ?? null}
           savedElapsed={activeSave?.elapsed ?? 0}
           settings={settings}
+          onSettingsChange={setSettings}
           onBackToMenu={handleBackToMenu}
           onSave={handleSaveGame}
         />

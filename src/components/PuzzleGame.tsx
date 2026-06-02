@@ -14,12 +14,13 @@ interface PuzzleGameProps {
   savedState: PieceState[] | null
   savedElapsed: number
   settings: GameSettings
+  onSettingsChange: (patch: Partial<GameSettings>) => void
   onBackToMenu: () => void
   onSave: (save: SaveData) => void
 }
 
 export default function PuzzleGame({
-  config, savedState, savedElapsed, settings, onBackToMenu, onSave,
+  config, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave,
 }: PuzzleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
@@ -121,6 +122,10 @@ export default function PuzzleGame({
     engineRef.current?.setSnapSensitivity(settings.snapSensitivity)
   }, [settings.snapSensitivity])
 
+  useEffect(() => {
+    engineRef.current?.setOutlines(settings.outlines)
+  }, [settings.outlines])
+
   const handleGhostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value)
     setGhostOpacity(val)
@@ -178,6 +183,14 @@ export default function PuzzleGame({
 
         <button className="btn btn-ghost btn-sm" onClick={() => engineRef.current?.addAllToTray()}>
           Tray all
+        </button>
+
+        <button
+          className={`btn btn-sm${settings.outlines ? ' btn-primary' : ' btn-ghost'}`}
+          onClick={() => onSettingsChange({ outlines: !settings.outlines })}
+          title="Toggle piece edge outlines"
+        >
+          Outlines
         </button>
 
         <button

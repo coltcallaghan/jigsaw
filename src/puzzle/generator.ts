@@ -183,9 +183,7 @@ function edgePath(
  */
 export async function renderPieceTextures(
   image: HTMLImageElement,
-  pieces: PieceDefinition[],
-  theme: Theme = 'dark',
-  outlines = true
+  pieces: PieceDefinition[]
 ): Promise<Map<number, ImageBitmap>> {
   const result = new Map<number, ImageBitmap>()
 
@@ -220,17 +218,6 @@ export async function renderPieceTextures(
       ctx.drawImage(image, imgSrcX, imgSrcY, imgSrcW, imgSrcH, dstX, dstY, imgSrcW, imgSrcH)
 
       ctx.restore()
-
-      // Theme-aware edge stroke drawn outside clip so tabs are fully outlined
-      if (outlines) {
-        const edge = THEME_EDGE[theme]
-        ctx.save()
-        ctx.translate(pad, pad)
-        ctx.strokeStyle = edge.color
-        ctx.lineWidth = edge.width
-        ctx.stroke(path)
-        ctx.restore()
-      }
 
       const bitmap = await createImageBitmap(canvas)
       result.set(piece.id, bitmap)

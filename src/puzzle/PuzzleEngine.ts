@@ -41,6 +41,7 @@ export class PuzzleEngine {
   private ghostLayer: Container   // ghost image overlay
   private boardBg: Graphics | null = null   // subtle board area fill
   private pieces: Map<number, PieceSprite> = new Map()
+  private edgeGraphics: Map<number, Graphics> = new Map()
   private definitions: PieceDefinition[] = []
   private config!: PuzzleConfig
   private cols = 0
@@ -134,7 +135,7 @@ export class PuzzleEngine {
     await new Promise<void>((resolve) => { img.onload = () => resolve() })
 
     // Render textures
-    const bitmaps = await renderPieceTextures(img, this.definitions, this.theme, this.outlines)
+    const bitmaps = await renderPieceTextures(img, this.definitions)
 
     // Set up board container with initial centering
     this.board.addChild(this.ghostLayer)
@@ -188,6 +189,11 @@ export class PuzzleEngine {
       sprite.cursor = 'grab'
       sprite.on('pointerdown', (e: FederatedPointerEvent) => this.onPieceDown(sprite, e))
       sprite.on('rightclick', () => this.onPieceRightClick(sprite))
+
+      const edge = this.buildEdgeGraphics(def)
+      edge.visible = this.outlines
+      sprite.addChild(edge)
+      this.edgeGraphics.set(def.id, edge)
 
       this.piecesLayer.addChild(sprite)
       this.pieces.set(def.id, sprite)
@@ -669,20 +675,9 @@ export class PuzzleEngine {
     return { cols: this.cols, rows: this.rows }
   }
 
-  // ─── Placement border ────────────────────────────────────────────────────
+  // ─── Edge / border helpers ───────────────────────────────────────────────
 
-  private addPlacedBorder(sprite: PieceSprite, def: PieceDefinition) {
-    const pathStr = buildPiecePath(def.edges, def.srcW, def.srcH)
-
-    const g = new Graphics()
-    g.label = 'placed-border'
-    g.eventMode = 'none'
-    // Piece body top-left in sprite local space = (-srcW/2, -srcH/2) because anchor=0.5
-    g.x = -def.srcW / 2
-    g.y = -def.srcH / 2
-
-    // Parse the SVG path string and draw it with PixiJS 8 Graphics commands.
-    // Format used: M x y  |  L x y  |  C cx1 cy1 cx2 cy2 x y  |  Z
+  private applyPathToGraphics(pathStr: string, g: Graphics) {
     const tokens = pathStr.trim().split(/\s+/)
     let i = 0
     while (i < tokens.length) {
@@ -701,8 +696,40 @@ export class PuzzleEngine {
         default: break
       }
     }
+  }
 
-    // Theme-appropriate placement highlight
+  private buildEdgeGraphics(def: PieceDefinition): Graphics {
+    const edgeStyle: Record<Theme, { color: number; width: number; alpha: number }> = {
+      cartoon: { color: 0x2B2B2B, width: 1.5, alpha: 0.55 },
+      modern:  { color: 0x111827, width: 0.8, alpha: 0.15 },
+      dark:    { color: 0xEAEEF7, width: 1.0, alpha: 0.30 },
+      arcade:  { color: 0x07F2E6, width: 1.5, alpha: 0.65 },
+    }
+    const style = edgeStyle[this.theme]
+    const g = new Graphics()
+    g.label = 'edge'
+    g.eventMode = 'none'
+    g.x = -def.srcW / 2
+    g.y = -def.srcH / 2
+    this.applyPathToGraphics(buildPiecePath(def.edges, def.srcW, def.srcH), g)
+    g.stroke({ color: style.color, width: style.width, alpha: style.alpha })
+    return g
+  }
+
+  setOutlines(enabled: boolean) {
+    this.outlines = enabled
+    this.edgeGraphics.forEach(g => { g.visible = enabled })
+  }
+
+  private addPlacedBorder(sprite: PieceSprite, def: PieceDefinition) {
+    const g = new Graphics()
+    g.label = 'placed-border'
+    g.eventMode = 'none'
+    g.x = -def.srcW / 2
+    g.y = -def.srcH / 2
+
+    this.applyPathToGraphics(buildPiecePath(def.edges, def.srcW, def.srcH), g)
+
     const placedStyle: Record<Theme, { color: number; width: number; alpha: number }> = {
       cartoon: { color: 0x2B2B2B, width: 2,   alpha: 0.30 },
       modern:  { color: 0x111827, width: 1,   alpha: 0.12 },
