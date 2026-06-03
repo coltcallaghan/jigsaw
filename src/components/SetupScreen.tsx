@@ -1,12 +1,13 @@
-import React, { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { PieceCountOption } from '../puzzle/types'
 import { isPieceSizeAllowed } from '../config/unlock'
 import UpsellModal from './UpsellModal'
 
 interface SetupScreenProps {
   imageDataUrl: string
+  /** Default puzzle name (e.g. "Puzzle 1"); editable here before starting. */
   imageName: string
-  onStart: (pieceCount: PieceCountOption) => void
+  onStart: (pieceCount: PieceCountOption, name: string) => void
   onBack: () => void
 }
 
@@ -33,16 +34,10 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 
 export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }: SetupScreenProps) {
   const [selected, setSelected] = useState<PieceCountOption>(100)
-  const [isDragging, setIsDragging] = useState(false)
+  const [name, setName] = useState(imageName)
   const [showUpsell, setShowUpsell] = useState(false)
   // Bumped after an unlock so isPieceSizeAllowed() is re-evaluated on render.
   const [unlockVersion, setUnlockVersion] = useState(0)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith('image/')) return
-    // image is already loaded — we'd need to call back up, but for now just trigger browse
-  }
 
   const handleSelect = (count: PieceCountOption) => {
     if (!isPieceSizeAllowed(count)) {
@@ -66,32 +61,30 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
         <h1 className="page-title">New Puzzle</h1>
 
         <div className="setup-grid">
-          {/* Left: image preview */}
+          {/* Left: image preview (display-only) + name */}
           <div>
-            <div className={`dropzone${imageDataUrl ? ' has-img' : ''}`}
-              onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={e => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <div className={`dropzone${imageDataUrl ? ' has-img' : ''}`}>
               {imageDataUrl
                 ? <img src={imageDataUrl} alt="Puzzle" />
                 : <>
                     <div style={{ fontSize: 40 }}><Icon name="image" size={40} /></div>
-                    <div className="dz-hint">Drop a photo here<br />or click to browse</div>
+                    <div className="dz-hint">No image selected</div>
                   </>
               }
-              {imageDataUrl && <div className="dz-replace">Replace image</div>}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 10 }}>
-              <span style={{ color: 'var(--text-dim)', fontSize: '.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                {imageName || 'No image selected'}
-              </span>
-            </div>
-
-            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+            <label className="setup-name">
+              <span className="setup-name-label">Puzzle name</span>
+              <input
+                className="text-input"
+                type="text"
+                value={name}
+                maxLength={60}
+                placeholder={imageName}
+                onChange={e => setName(e.target.value)}
+                onBlur={() => { if (!name.trim()) setName(imageName) }}
+              />
+            </label>
           </div>
 
           {/* Right: difficulty */}
@@ -123,7 +116,7 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
               className="btn btn-primary btn-lg btn-block"
               style={{ marginTop: 22, justifyContent: 'center' }}
               disabled={!imageDataUrl || !selectionAllowed}
-              onClick={() => selectionAllowed && onStart(selected)}
+              onClick={() => selectionAllowed && onStart(selected, name.trim() || imageName)}
             >
               <Icon name="sparkle" /> Start Puzzle — {selected.toLocaleString()} pieces
             </button>

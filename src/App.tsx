@@ -6,6 +6,7 @@ import SettingsScreen from './components/SettingsScreen'
 import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
 import { listSaves, getSave, type SaveData, type SaveMeta } from './utils/saveGame'
+import { nextPuzzleName } from './utils/puzzleNaming'
 import { AudioManager } from './audio/AudioManager'
 import { syncEntitlement } from './config/purchases'
 
@@ -49,13 +50,15 @@ export default function App() {
     }
   }, [screen, settings.theme, settings.musicEnabled])
 
-  const handleImageSelected = (dataUrl: string, name: string) => {
+  const handleImageSelected = (dataUrl: string) => {
     setImageDataUrl(dataUrl)
-    setImageName(name)
+    // Puzzles are named sequentially ("Puzzle 1", "Puzzle 2", …) regardless of
+    // the source file name. The name is editable on the setup screen.
+    setImageName(nextPuzzleName())
     setScreen('setup')
   }
 
-  const handleStart = (pieceCount: PieceCountOption) => {
+  const handleStart = (pieceCount: PieceCountOption, name: string) => {
     const img = new Image()
     img.src = imageDataUrl
     img.onload = () => {
@@ -66,6 +69,7 @@ export default function App() {
         imageHeight: img.naturalHeight,
         cols: 0, rows: 0,
         pieceCount,
+        name: name.trim() || imageName,
       })
       setScreen('game')
     }
@@ -80,7 +84,8 @@ export default function App() {
     const save = getSave(id)
     if (!save) return
     setActiveSave(save)
-    setPuzzleConfig(save.config)
+    // Backfill name for saves created before puzzles were named.
+    setPuzzleConfig({ ...save.config, name: save.config.name ?? save.imageName })
     setScreen('game')
   }
 

@@ -29,6 +29,8 @@ export interface PuzzleConfig {
   cols: number
   rows: number
   pieceCount: number
+  /** User-facing puzzle name, e.g. "Puzzle 1". Renameable. */
+  name: string
 }
 
 export type GameScreen = 'menu' | 'setup' | 'game'

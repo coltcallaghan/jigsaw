@@ -56,7 +56,7 @@ export default function PuzzleGame({
     const thumbnail = await makeThumbnail(config.imageDataUrl)
     const save: SaveData = {
       id: saveIdRef.current,
-      imageName: config.imageDataUrl.slice(0, 50),
+      imageName: config.name,
       pieceCount: total,
       placedCount,
       createdAt: parseInt(saveIdRef.current),

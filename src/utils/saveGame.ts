@@ -67,6 +67,21 @@ export function deleteSave(id: string): void {
   localStorage.setItem(INDEX_KEY, JSON.stringify(list))
 }
 
+/** Rename a saved puzzle, updating both the index and the full save record. */
+export function renameSave(id: string, name: string): SaveMeta[] {
+  const trimmed = name.trim()
+  if (!trimmed) return listSaves()
+
+  const list = listSaves().map(s => (s.id === id ? { ...s, imageName: trimmed } : s))
+  localStorage.setItem(INDEX_KEY, JSON.stringify(list))
+
+  const save = getSave(id)
+  if (save) {
+    localStorage.setItem(PREFIX + id, JSON.stringify({ ...save, imageName: trimmed }))
+  }
+  return list
+}
+
 /** Downscale an image data-url to a tiny thumbnail. */
 export function makeThumbnail(dataUrl: string, maxW = 120, maxH = 80): Promise<string> {
   return new Promise(resolve => {

@@ -220,19 +220,27 @@ h1, h2, h3 {
   border-radius: var(--radius); background: var(--surface-2);
   aspect-ratio: 4/3; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 12px; cursor: pointer; overflow: hidden; position: relative;
-  transition: border-color .2s, background .2s, transform .15s var(--ease);
+  gap: 12px; overflow: hidden; position: relative;
 }
-.dropzone:hover { transform: translateY(-2px); border-color: var(--primary); }
 .dropzone.has-img { border-style: solid; border-color: var(--ink); padding: 0; }
 .dropzone img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .dropzone .dz-hint { color: var(--text-dim); font-size: .9rem; text-align: center; padding: 0 24px; }
-.dz-replace {
-  position: absolute; inset: auto 0 0 0; padding: 10px; text-align: center;
-  background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #fff;
-  font-family: var(--font-head); font-size: .85rem; opacity: 0; transition: opacity .2s;
+
+/* Puzzle name field on the setup screen */
+.setup-name { display: block; margin-top: 14px; }
+.setup-name-label {
+  display: block; margin-bottom: 6px; color: var(--text-dim);
+  font-size: .76rem; text-transform: uppercase; letter-spacing: .1em;
+  font-family: var(--font-head);
 }
-.dropzone.has-img:hover .dz-replace { opacity: 1; }
+.text-input {
+  width: 100%; padding: 10px 12px; color: var(--text);
+  background: var(--surface); border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius-sm); font-size: .95rem; font-family: inherit;
+  box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s;
+}
+.text-input:focus { outline: none; border-color: var(--primary); box-shadow: var(--glow, var(--shadow-sm)); }
+.saved-rename { max-width: 240px; padding: 6px 8px; font-size: .95rem; }
 
 .diff-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 560px) { .diff-grid { grid-template-columns: repeat(2,1fr); } }

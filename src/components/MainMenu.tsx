@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react'
 import type { SaveMeta } from '../utils/saveGame'
-import { deleteSave } from '../utils/saveGame'
+import { deleteSave, renameSave } from '../utils/saveGame'
 
 interface MainMenuProps {
-  onNewGame: (dataUrl: string, name: string) => void
+  onNewGame: (dataUrl: string) => void
   onContinue: () => void
   onLoadSave: (id: string) => void
   onSettings: () => void
@@ -36,6 +36,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     folder: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
     gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 12a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7.3 7.3 0 0 0-1.7-1l-.4-2.5H10l-.4 2.5a7.3 7.3 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.3 7.3 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.3 7.3 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.06-.33.1-.66.1-1z" /></>,
     trash: <><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" /></>,
+    pencil: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>,
   }
   return <svg viewBox="0 0 24 24" {...s}>{paths[name]}</svg>
 }
@@ -48,11 +49,13 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [view, setView] = useState<View>('main')
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = e => onNewGame(e.target?.result as string, file.name)
+    reader.onload = e => onNewGame(e.target?.result as string)
     reader.readAsDataURL(file)
   }
 
@@ -60,7 +63,7 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
     const api = (window as any).electronAPI
     if (api?.openImage) {
       const dataUrl: string | null = await api.openImage()
-      if (dataUrl) onNewGame(dataUrl, 'image')
+      if (dataUrl) onNewGame(dataUrl)
     } else {
       fileInputRef.current?.click()
     }
@@ -75,6 +78,18 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
     e.stopPropagation()
     deleteSave(id)
     onSavesChange(saves.filter(s => s.id !== id))
+  }
+
+  const startRename = (save: SaveMeta, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setRenamingId(save.id)
+    setRenameText(save.imageName)
+  }
+
+  const commitRename = () => {
+    if (!renamingId) return
+    onSavesChange(renameSave(renamingId, renameText))
+    setRenamingId(null)
   }
 
   if (view === 'load') {
@@ -92,19 +107,46 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
               </div>
             )}
             {saves.map(save => (
-              <div key={save.id} className="saved-item" onClick={() => onLoadSave(save.id)}>
+              <div
+                key={save.id}
+                className="saved-item"
+                onClick={() => { if (renamingId !== save.id) onLoadSave(save.id) }}
+              >
                 {save.thumbnailUrl
                   ? <img className="saved-thumb" src={save.thumbnailUrl} alt="" />
                   : <div className="saved-thumb" style={{ background: 'var(--surface-2)' }} />
                 }
                 <div className="saved-meta">
-                  <div className="t">{save.imageName}</div>
+                  {renamingId === save.id
+                    ? <input
+                        className="text-input saved-rename"
+                        type="text"
+                        value={renameText}
+                        maxLength={60}
+                        autoFocus
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => setRenameText(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitRename()
+                          if (e.key === 'Escape') setRenamingId(null)
+                        }}
+                      />
+                    : <div className="t">{save.imageName}</div>
+                  }
                   <div className="s">{save.pieceCount.toLocaleString()} pieces · {formatDate(save.updatedAt)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
                     <span className="mini-bar"><i style={{ width: `${(save.placedCount / save.pieceCount) * 100}%` }} /></span>
                     <span style={{ fontSize: '.8rem', color: 'var(--text-dim)' }}>{save.placedCount}/{save.pieceCount}</span>
                   </div>
                 </div>
+                <button
+                  className="btn btn-icon btn-ghost"
+                  title="Rename"
+                  onClick={e => startRename(save, e)}
+                >
+                  <Icon name="pencil" size={18} />
+                </button>
                 <button
                   className="btn btn-icon btn-ghost"
                   title="Delete"
