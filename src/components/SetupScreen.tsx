@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react'
 import type { PieceCountOption } from '../puzzle/types'
-import { PIECE_COUNT_OPTIONS } from '../puzzle/types'
+import { isNative } from '../config/platform'
+import { isPieceSizeAllowed } from '../config/unlock'
 
 interface SetupScreenProps {
   imageDataUrl: string
@@ -25,6 +26,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
     image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5L5 20" /></>,
     sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" fill="currentColor" stroke="none" />,
+    lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
   }
   return <svg viewBox="0 0 24 24" {...s}>{paths[name]}</svg>
 }
@@ -38,6 +40,17 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
     if (!file.type.startsWith('image/')) return
     // image is already loaded — we'd need to call back up, but for now just trigger browse
   }
+
+  const handleSelect = (count: PieceCountOption) => {
+    if (!isPieceSizeAllowed(count)) {
+      // TODO: replace with a styled themed upsell card before release.
+      alert('Unlock all puzzle sizes with a one-time purchase. (Coming soon)')
+      return
+    }
+    setSelected(count)
+  }
+
+  const selectionAllowed = isPieceSizeAllowed(selected)
 
   return (
     <div className="screen scroll fade-in">
@@ -81,24 +94,32 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
           <div>
             <h3 style={{ marginBottom: 14, fontSize: '1.15rem', fontFamily: 'var(--font-head)' }}>Choose difficulty</h3>
             <div className="diff-grid">
-              {DIFFICULTIES.map(d => (
-                <div
-                  key={d.count}
-                  className={`diff-card${selected === d.count ? ' sel' : ''}`}
-                  onClick={() => setSelected(d.count)}
-                >
-                  <div className="num">{d.count.toLocaleString()}</div>
-                  <div className="lab">{d.label}</div>
-                  <div className="tm">{d.time}</div>
-                </div>
-              ))}
+              {DIFFICULTIES.map(d => {
+                const locked = !isPieceSizeAllowed(d.count)
+                return (
+                  <div
+                    key={d.count}
+                    className={`diff-card${selected === d.count ? ' sel' : ''}${locked ? ' locked' : ''}`}
+                    onClick={() => handleSelect(d.count)}
+                  >
+                    {locked && (
+                      <span className="diff-lock" title="Unlock with one-time purchase" aria-label="Locked">
+                        <Icon name="lock" size={14} />
+                      </span>
+                    )}
+                    <div className="num">{d.count.toLocaleString()}</div>
+                    <div className="lab">{d.label}</div>
+                    <div className="tm">{d.time}</div>
+                  </div>
+                )
+              })}
             </div>
 
             <button
               className="btn btn-primary btn-lg btn-block"
               style={{ marginTop: 22, justifyContent: 'center' }}
-              disabled={!imageDataUrl}
-              onClick={() => onStart(selected)}
+              disabled={!imageDataUrl || !selectionAllowed}
+              onClick={() => selectionAllowed && onStart(selected)}
             >
               <Icon name="sparkle" /> Start Puzzle — {selected.toLocaleString()} pieces
             </button>

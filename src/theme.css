@@ -237,6 +237,7 @@ h1, h2, h3 {
 .diff-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 560px) { .diff-grid { grid-template-columns: repeat(2,1fr); } }
 .diff-card {
+  position: relative;
   border: var(--border-w) solid var(--ink); border-radius: var(--radius-sm);
   background: var(--surface); padding: 14px 8px; text-align: center; cursor: pointer;
   transition: transform .14s var(--ease), box-shadow .14s, background .2s, border-color .2s;
@@ -254,6 +255,15 @@ h1, h2, h3 {
 }
 .diff-card.sel .lab { color: var(--primary); }
 .app[data-theme="cartoon"] .diff-card.sel { background: var(--gold); }
+.diff-card.locked { opacity: .6; }
+.diff-card.locked:hover { transform: none; }
+.diff-lock {
+  position: absolute; top: 6px; right: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 14%, var(--surface));
+  color: var(--text-dim);
+}
 
 /* ── SETTINGS ────────────────────────────────────────────── */
 .tabs {

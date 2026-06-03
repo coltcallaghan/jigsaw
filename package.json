@@ -11,7 +11,12 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-builder",
-    "package:win": "electron-builder --win"
+    "package:win": "electron-builder --win",
+    "package:mac": "electron-builder --mac",
+    "package:linux": "electron-builder --linux",
+    "sync:mobile": "npm run build:web && npx cap sync",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -28,6 +33,10 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
     "@pixi/assets": "^7.4.0",
     "pixi.js": "^8.0.0",
     "react": "^18.0.0",
@@ -44,10 +53,17 @@
       "icon": "resources/icon.ico"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "resources/icon.png"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "resources/icon.icns",
+      "category": "public.app-category.games",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     }
   }
 }

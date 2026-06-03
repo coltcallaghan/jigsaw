@@ -5,3 +5,7 @@ out/
 release/
 .DS_Store
 *.local
+
+# Capacitor native projects (regenerated via `npx cap add`)
+ios/
+android/

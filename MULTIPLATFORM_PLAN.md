@@ -212,3 +212,25 @@ Both work — just keep it consistent.
 4. Step 3 (freemium gate) — with the corrected limit + themed modal.
 5. Step 5 (CI) — keep existing `deploy.yml`; add platform workflows as
    `workflow_dispatch`-only until secrets are configured.
+
+---
+
+## Implementation status (2026-06-03)
+
+- ✅ **Prereq icons** — `resources/{icon.ico,icon.icns,icon.png}` committed.
+- ✅ **Step 2 (Capacitor)** — deps installed; `capacitor.config.ts` added; scripts
+  added (`sync:mobile` reuses `build:web`; redundant `build:mobile` alias dropped);
+  `ios/` + `android/` added to `.gitignore`. Native projects regenerated in CI via
+  `npx cap add`. Run `npx cap add ios/android` locally when developing on-device.
+- ✅ **Step 4 (Mac/electron-builder)** — `build/entitlements.mac.plist` created;
+  `build` block extended with mac hardenedRuntime/entitlements/category and
+  linux/win icons.
+- ✅ **Step 3 (freemium gate)** — `src/config/platform.ts` (`FREE_PIECE_LIMIT=100`)
+  and `src/config/unlock.ts` added; `SetupScreen` shows a lock badge on gated
+  cards, blocks selection/start, and shows a placeholder `alert()` upsell.
+  ⚠️ TODO before release: replace the `alert()` with a themed upsell card, and add
+  a real IAP plugin + store products.
+- ✅ **Step 5 (CI)** — kept `deploy.yml`; added `build-steam-{windows,linux,mac}.yml`,
+  `build-android.yml`, `build-ios.yml` as `workflow_dispatch`-only.
+  ⚠️ TODO: configure the ~15 signing secrets, then add `push: tags` triggers.
+  iOS still needs `ios/App/ExportOptions.plist` (committed after first `cap add`).

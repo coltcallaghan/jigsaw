@@ -1,0 +1,45 @@
+name: Build Android
+
+# Requires signing secrets:
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Enable the tag trigger once these are configured.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build:web
+
+      # Native project is gitignored; regenerate then sync.
+      - name: Generate + sync Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Assemble release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jigsaw-android
+          path: android/app/build/outputs/**/*.apk
