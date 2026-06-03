@@ -453,6 +453,26 @@ input[type=range].rng::-moz-range-thumb {
   width: min(420px, 92vw); padding: 30px; text-align: center;
   display: flex; flex-direction: column; gap: 12px;
 }
+.consent-card {
+  width: min(520px, 94vw); padding: 28px;
+  display: flex; flex-direction: column;
+}
+.legal-scroll {
+  margin-top: 14px; max-height: min(46vh, 360px); overflow-y: auto;
+  padding: 14px 16px; text-align: left;
+  background: var(--surface-2); border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius-sm);
+}
+.legal-doc .legal-h {
+  font-family: var(--font-head); font-size: 1rem; margin: 16px 0 6px;
+}
+.legal-doc .legal-h:first-child { margin-top: 0; }
+.legal-doc .legal-p { margin: 0 0 10px; font-size: .9rem; line-height: 1.5; color: var(--text); }
+.legal-doc .legal-li {
+  margin: 0 0 6px; font-size: .9rem; line-height: 1.5; color: var(--text);
+  padding-left: 16px; position: relative;
+}
+.legal-doc .legal-li::before { content: "•"; position: absolute; left: 2px; color: var(--text-dim); }
 .confetti { position: absolute; top: -20px; width: 11px; height: 14px; opacity: .95; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(105vh) rotate(640deg); opacity: 1; } }
 

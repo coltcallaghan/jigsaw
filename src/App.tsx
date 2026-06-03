@@ -7,6 +7,8 @@ import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
 import { listSaves, getSave, type SaveData, type SaveMeta } from './utils/saveGame'
 import { nextPuzzleName } from './utils/puzzleNaming'
+import { hasAcceptedCurrentPolicy, acceptCurrentPolicy } from './utils/consent'
+import ConsentGate from './components/ConsentGate'
 import { AudioManager } from './audio/AudioManager'
 import { syncEntitlement } from './config/purchases'
 
@@ -20,6 +22,7 @@ export default function App() {
   const [puzzleConfig, setPuzzleConfig] = useState<PuzzleConfig | null>(null)
   const [activeSave, setActiveSave] = useState<SaveData | null>(null)
   const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
+  const [consented, setConsented] = useState<boolean>(() => hasAcceptedCurrentPolicy())
 
   const { settings, setSettings, resetSettings } = useSettings()
 
@@ -100,8 +103,15 @@ export default function App() {
     filter: settings.brightness !== 100 ? `brightness(${settings.brightness / 100})` : undefined,
   }
 
+  const handleAcceptConsent = () => {
+    acceptCurrentPolicy()
+    setConsented(true)
+  }
+
   return (
     <div className="app" data-theme={settings.theme} style={appStyle}>
+      {!consented && <ConsentGate onAccept={handleAcceptConsent} />}
+
       {screen === 'menu' && (
         <MainMenu
           onNewGame={handleImageSelected}

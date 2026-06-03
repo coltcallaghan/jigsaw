@@ -20,8 +20,13 @@ Unlock entitlement (RevenueCat): **`unlock_all_sizes`**
       `com.coltcallaghan.jigsaw.unlock_all`.
 - [ ] Put the **public** RevenueCat SDK keys in CI secrets `VITE_RC_IOS_KEY`,
       `VITE_RC_ANDROID_KEY` (and in a local `.env` from `.env.example` for device testing).
-- [ ] **Privacy policy URL** — required by both mobile stores even if no data is
-      collected. Host a page and note the URL here: `__________`.
+- [ ] **Privacy policy URL** — required by both mobile store *listings* even
+      though the policy is also shown in-app. Host the SAME text that ships in
+      `src/legal/content.ts` and note the URL here: `__________`.
+- [ ] **Review the bundled legal draft** in `src/legal/content.ts` (Privacy +
+      Terms) before release — it is a reasonable draft, not legal advice. Confirm
+      wording, the effective date, and `CONTACT_EMAIL`. Bump `POLICY_VERSION` if
+      you change it materially (re-shows the first-run consent gate).
 - [ ] Decide pricing for the one-time unlock; set it per store.
 
 ## 1. Steam (desktop)

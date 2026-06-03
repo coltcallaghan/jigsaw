@@ -30,6 +30,18 @@ Run **`npm run check:audio`** to see which of the 10 expected files are present.
 - [ ] Verify volume sliders + SFX/music toggles in Settings → Audio behave once
       real files are present.
 
+## Legal / consent 🔴 (code DONE — needs review + hosted URL)
+
+First-run blocking consent gate ([`ConsentGate`](./src/components/ConsentGate.tsx))
+shows the bundled Privacy Policy + Terms; acceptance is versioned
+([`utils/consent.ts`](./src/utils/consent.ts)). Both docs are always reachable
+later via Settings → About. Declining shows a non-blocking "review required"
+state with a way back to Accept — no doom loop.
+
+- [ ] Review the draft wording in `src/legal/content.ts` (not legal advice).
+- [ ] Host the same text at a public URL for the store listings.
+- [ ] Bump `POLICY_VERSION` on material changes to re-prompt existing users.
+
 ## In-app purchase / size lockdown 🔴 (code DONE — needs store config)
 
 The paid lock on large puzzle sizes is **implemented**: sizes over

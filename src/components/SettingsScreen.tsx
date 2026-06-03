@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import type { GameSettings, Theme } from '../hooks/useSettings'
+import { PRIVACY_POLICY, TERMS_OF_USE, POLICY_VERSION } from '../legal/content'
+import LegalDoc from './LegalDoc'
 
 interface ThemePreview {
   id: Theme
@@ -32,7 +34,7 @@ interface SettingsScreenProps {
   onBack: () => void
 }
 
-type Tab = 'visual' | 'audio' | 'gameplay'
+type Tab = 'visual' | 'audio' | 'gameplay' | 'about'
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -54,6 +56,28 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   )
 }
 
+function AboutTab() {
+  const [doc, setDoc] = useState<'privacy' | 'terms'>('privacy')
+  return (
+    <div>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        <button className={`tab${doc === 'privacy' ? ' active' : ''}`} onClick={() => setDoc('privacy')}>
+          Privacy Policy
+        </button>
+        <button className={`tab${doc === 'terms' ? ' active' : ''}`} onClick={() => setDoc('terms')}>
+          Terms of Use
+        </button>
+      </div>
+      <div className="legal-scroll">
+        <LegalDoc blocks={doc === 'privacy' ? PRIVACY_POLICY : TERMS_OF_USE} />
+      </div>
+      <div style={{ color: 'var(--text-dim)', fontSize: '.8rem', marginTop: 14, textAlign: 'center' }}>
+        Jigsaw · policy v{POLICY_VERSION}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsScreen({ settings, onChange, onReset, onBack }: SettingsScreenProps) {
   const [tab, setTab] = useState<Tab>('visual')
   const set = <K extends keyof GameSettings>(k: K, v: GameSettings[K]) => onChange({ [k]: v } as Partial<GameSettings>)
@@ -68,7 +92,7 @@ export default function SettingsScreen({ settings, onChange, onReset, onBack }: 
         <h1 className="page-title">Settings</h1>
 
         <div className="tabs">
-          {(['visual', 'audio', 'gameplay'] as Tab[]).map(t => (
+          {(['visual', 'audio', 'gameplay', 'about'] as Tab[]).map(t => (
             <button key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -186,9 +210,13 @@ export default function SettingsScreen({ settings, onChange, onReset, onBack }: 
               <Toggle on={settings.showPieceCount} onClick={() => set('showPieceCount', !settings.showPieceCount)} />
             </div>
           </>}
+
+          {tab === 'about' && <AboutTab />}
         </div>
 
-        <button className="back-link" onClick={onReset}>Reset to defaults</button>
+        {tab !== 'about' && (
+          <button className="back-link" onClick={onReset}>Reset to defaults</button>
+        )}
       </div>
     </div>
   )
