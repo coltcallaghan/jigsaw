@@ -2,6 +2,7 @@ import {
   Application,
   Container,
   Graphics,
+  Polygon,
   Sprite,
   Texture,
   FederatedPointerEvent,
@@ -212,6 +213,9 @@ export class PuzzleEngine {
 
       sprite.eventMode = 'static'
       sprite.cursor = 'grab'
+      // Hit area = the actual jigsaw outline, so transparent corners don't grab
+      // and pieces hidden behind another piece's empty corner stay reachable.
+      sprite.hitArea = this.buildHitArea(def)
       sprite.on('pointerdown', (e: FederatedPointerEvent) => this.onPieceDown(sprite, e))
       sprite.on('rightclick', () => this.onPieceRightClick(sprite))
 
@@ -453,57 +457,45 @@ export class PuzzleEngine {
     const def = this.definitions[sprite.pieceId]
     const snapDist = Math.min(this.pieceW, this.pieceH) * SNAP_DISTANCE
 
-    // Check each neighbour
-    const neighbours = [
-      { dc: 0, dr: -1 },  // above
-      { dc: 1, dr: 0 },   // right
-      { dc: 0, dr: 1 },   // below
-      { dc: -1, dr: 0 },  // left
-    ]
+    // A piece only ever snaps to its OWN correct solved position. This guarantees
+    // pieces can never link to the wrong neighbour: every connection is by virtue
+    // of both pieces being in their true grid slots, so adjacency is always real.
+    const solvedX = def.col * this.pieceW + this.pieceW / 2
+    const solvedY = def.row * this.pieceH + this.pieceH / 2
+    const distToSolved = Math.hypot(sprite.x - solvedX, sprite.y - solvedY)
 
+    if (distToSolved >= snapDist || sprite.placed) return
+
+    // Lock to the absolute solved position
+    sprite.x = solvedX
+    sprite.y = solvedY
+    sprite.rotation = 0
+    sprite.placed = true
+    sprite.cursor = 'default'
+    sprite.eventMode = 'none'   // clicks pass through to pieces below
+    this.addPlacedBorder(sprite, def)
+
+    // Merge with any already-placed grid neighbours so completed regions read
+    // as a single connected group (purely cosmetic now — all are at solved pos).
+    const neighbours = [
+      { dc: 0, dr: -1 }, { dc: 1, dr: 0 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 },
+    ]
+    let merged = false
     for (const { dc, dr } of neighbours) {
       const nc = def.col + dc
       const nr = def.row + dr
       if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue
-
-      const neighbourId = nr * this.cols + nc
-      const neighbour = this.pieces.get(neighbourId)
-      if (!neighbour) continue
-
-      // Where sprite *should* be relative to neighbour if snapped
-      const expectedX = neighbour.x + dc * this.pieceW
-      const expectedY = neighbour.y + dr * this.pieceH
-
-      const dist = Math.hypot(sprite.x - expectedX, sprite.y - expectedY)
-      if (dist < snapDist) {
-        // Snap!
-        sprite.x = expectedX
-        sprite.y = expectedY
-        sprite.rotation = 0
+      const neighbour = this.pieces.get(nr * this.cols + nc)
+      if (neighbour && neighbour.placed) {
         this.mergeGroups(sprite, neighbour)
-        AudioManager.play('piece_group')
-        this.checkAllSnapped(sprite)
-        break
+        merged = true
       }
     }
 
-    // Check if piece is near its solved position (no neighbour needed)
-    const solvedX = def.col * this.pieceW + this.pieceW / 2
-    const solvedY = def.row * this.pieceH + this.pieceH / 2
-    const distToSolved = Math.hypot(sprite.x - solvedX, sprite.y - solvedY)
-    if (distToSolved < snapDist && !sprite.placed) {
-      sprite.x = solvedX
-      sprite.y = solvedY
-      sprite.rotation = 0
-      sprite.placed = true
-      sprite.cursor = 'default'
-      sprite.eventMode = 'none'   // clicks pass through to pieces below
-      this.addPlacedBorder(sprite, this.definitions[sprite.pieceId])
-      AudioManager.play('piece_snap')
-      this.placedCount++
-      this.onProgress(this.placedCount, this.definitions.length)
-      if (this.placedCount === this.definitions.length) this.onComplete()
-    }
+    AudioManager.play(merged ? 'piece_group' : 'piece_snap')
+    this.placedCount++
+    this.onProgress(this.placedCount, this.definitions.length)
+    if (this.placedCount === this.definitions.length) this.onComplete()
   }
 
   private mergeGroups(a: PieceSprite, b: PieceSprite) {
@@ -531,37 +523,6 @@ export class PuzzleEngine {
       const s = this.pieces.get(id)
       if (s) s.groupId = gid
     })
-  }
-
-  private checkAllSnapped(sprite: PieceSprite) {
-    // If this piece's whole group is placed, mark them all
-    if (sprite.groupId === null) return
-    const group = this.groups.get(sprite.groupId)
-    if (!group) return
-
-    let allPlaced = true
-    group.forEach((id) => {
-      const def = this.definitions[id]
-      const s = this.pieces.get(id)!
-      const solvedX = def.col * this.pieceW + this.pieceW / 2
-      const solvedY = def.row * this.pieceH + this.pieceH / 2
-      if (Math.hypot(s.x - solvedX, s.y - solvedY) > 1) allPlaced = false
-    })
-
-    if (allPlaced) {
-      group.forEach((id) => {
-        const s = this.pieces.get(id)!
-        if (!s.placed) {
-          s.placed = true
-          s.cursor = 'default'
-          s.eventMode = 'none'
-          this.addPlacedBorder(s, this.definitions[id])
-          this.placedCount++
-          this.onProgress(this.placedCount, this.definitions.length)
-        }
-      })
-      if (this.placedCount === this.definitions.length) this.onComplete()
-    }
   }
 
   // ─── Zoom ────────────────────────────────────────────────────────────────
@@ -768,8 +729,9 @@ export class PuzzleEngine {
 
   // ─── Runtime settings ────────────────────────────────────────────────────
 
-  setSnapSensitivity(value: number) {
-    SNAP_DISTANCE = Math.max(0.2, Math.min(0.9, value))
+  /** `fraction` is a SNAP_DISTANCE value (fraction of piece size), via snapFraction(). */
+  setSnapSensitivity(fraction: number) {
+    SNAP_DISTANCE = Math.max(0.12, Math.min(0.4, fraction))
   }
 
   setBackgroundColor(hex: string) {
@@ -835,6 +797,53 @@ export class PuzzleEngine {
         default: break
       }
     }
+  }
+
+  /**
+   * Flatten a piece path into a Polygon hit area in the sprite's centred local
+   * space, so only the actual jigsaw shape is grabbable (not the transparent
+   * bounding-box corners). Bezier segments are sampled into line points.
+   */
+  private buildHitArea(def: PieceDefinition): Polygon {
+    const pathStr = buildPiecePath(def.edges, def.srcW, def.srcH)
+    const tokens = pathStr.trim().split(/\s+/)
+    const pts: number[] = []
+    // anchor is 0.5, so local coords are offset to centre the piece
+    const ox = -def.srcW / 2
+    const oy = -def.srcH / 2
+    let cx = 0, cy = 0
+    const push = (x: number, y: number) => { pts.push(x + ox, y + oy) }
+    const SEGMENTS = 8
+
+    let i = 0
+    while (i < tokens.length) {
+      const cmd = tokens[i++]
+      switch (cmd) {
+        case 'M':
+        case 'L': {
+          cx = +tokens[i]; cy = +tokens[i + 1]; i += 2
+          push(cx, cy)
+          break
+        }
+        case 'C': {
+          const x1 = +tokens[i], y1 = +tokens[i + 1]
+          const x2 = +tokens[i + 2], y2 = +tokens[i + 3]
+          const x3 = +tokens[i + 4], y3 = +tokens[i + 5]
+          i += 6
+          for (let s = 1; s <= SEGMENTS; s++) {
+            const t = s / SEGMENTS, u = 1 - t
+            // Cubic bezier from (cx,cy) via (x1,y1),(x2,y2) to (x3,y3)
+            const x = u*u*u*cx + 3*u*u*t*x1 + 3*u*t*t*x2 + t*t*t*x3
+            const y = u*u*u*cy + 3*u*u*t*y1 + 3*u*t*t*y2 + t*t*t*y3
+            push(x, y)
+          }
+          cx = x3; cy = y3
+          break
+        }
+        case 'Z': default: break
+      }
+    }
+    return new Polygon(pts)
   }
 
   /**

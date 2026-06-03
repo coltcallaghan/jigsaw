@@ -3,6 +3,7 @@ import { PuzzleEngine } from '../puzzle/PuzzleEngine'
 import { computeGrid, generatePieces } from '../puzzle/generator'
 import type { PuzzleConfig } from '../puzzle/types'
 import type { GameSettings } from '../hooks/useSettings'
+import { snapFraction } from '../hooks/useSettings'
 import type { SaveData, PieceState } from '../utils/saveGame'
 import { writeSave, makeThumbnail } from '../utils/saveGame'
 import PieceTray from './PieceTray'
@@ -94,7 +95,7 @@ export default function PuzzleGame({
       onTrayUpdate: (ids) => setTrayPieceIds(ids),
       onReady: () => {
         engine.setGhostOpacity(INITIAL_GHOST)
-        engine.setSnapSensitivity(settings.snapSensitivity)
+        engine.setSnapSensitivity(snapFraction(settings.snapSensitivity))
 
         if (savedState && savedState.length > 0) {
           engine.loadFromSave(savedState)
@@ -123,7 +124,7 @@ export default function PuzzleGame({
 
   // Apply settings changes live
   useEffect(() => {
-    engineRef.current?.setSnapSensitivity(settings.snapSensitivity)
+    engineRef.current?.setSnapSensitivity(snapFraction(settings.snapSensitivity))
   }, [settings.snapSensitivity])
 
   useEffect(() => {

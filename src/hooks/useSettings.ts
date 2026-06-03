@@ -79,7 +79,8 @@ export function useSettings() {
   return { settings, setSettings, resetSettings }
 }
 
-/** Map snapSensitivity (14–52) to SNAP_DISTANCE fraction (0.2–0.8) */
+/** Map snapSensitivity (14–52) to SNAP_DISTANCE fraction (0.15–0.35) */
 export function snapFraction(sensitivity: number): number {
-  return 0.2 + ((sensitivity - 14) / (52 - 14)) * 0.6
+  const t = (sensitivity - 14) / (52 - 14)   // 0–1
+  return 0.15 + t * 0.20
 }
