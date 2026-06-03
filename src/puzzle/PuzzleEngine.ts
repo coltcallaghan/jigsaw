@@ -277,8 +277,11 @@ export class PuzzleEngine {
     sprite.cursor = 'grabbing'
     AudioManager.play('piece_pickup')
 
-    // Arm long-press-to-stash (touch equivalent of right-click)
-    this.armLongPress(sprite, e.globalX, e.globalY)
+    // Arm long-press-to-stash — touch/pen only. On a mouse, holding the button
+    // while deciding where to move a piece must NOT stash it (right-click does).
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+      this.armLongPress(sprite, e.globalX, e.globalY)
+    }
 
     const local = this.piecesLayer.toLocal(e.global)
     this.dragOffX = local.x - sprite.x

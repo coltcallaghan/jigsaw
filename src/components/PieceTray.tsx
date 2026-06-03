@@ -27,10 +27,17 @@ export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, 
     ? 'rgba(43,43,43,.45)'
     : 'rgba(255,255,255,.45)'
 
+  // Touch-primary devices use long-press to stash; mouse devices use right-click.
+  const isTouch = typeof window !== 'undefined'
+    && window.matchMedia?.('(pointer: coarse)').matches
+
   return (
     <div className="tray-body">
       {pieceIds.length === 0 && (
-        <div className="tray-empty">Tray is empty.<br />Right-click (or long-press) a piece to stash it.</div>
+        <div className="tray-empty">
+          Tray is empty.<br />
+          {isTouch ? 'Long-press' : 'Right-click'} a piece to stash it.
+        </div>
       )}
       {pieceIds.map(id => {
         const def = defMap.get(id)
