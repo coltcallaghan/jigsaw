@@ -5,6 +5,9 @@ out/
 release/
 .DS_Store
 *.local
+.env
+.env.*
+!.env.example
 
 # Capacitor native projects (regenerated via `npx cap add`)
 ios/

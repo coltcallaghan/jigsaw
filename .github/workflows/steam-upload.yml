@@ -1,0 +1,61 @@
+name: Steam Upload
+
+# Uploads the latest Windows/Linux/macOS builds to Steam via SteamPipe.
+# Requires:
+#   - The three build-steam-* workflows to have run (their artifacts are pulled here).
+#   - Steamworks secrets: STEAM_USERNAME, STEAM_CONFIG_VDF
+#     (STEAM_CONFIG_VDF = base64 of a config.vdf from a steamcmd login with
+#      Steam Guard already satisfied; see STORE_CHECKLIST.md).
+#   - Real AppID/DepotIDs filled into steam/*.vdf.
+on:
+  workflow_dispatch:
+    inputs:
+      windows_run_id:
+        description: 'Run ID of build-steam-windows (blank = latest successful)'
+        required: false
+      linux_run_id:
+        description: 'Run ID of build-steam-linux (blank = latest successful)'
+        required: false
+      macos_run_id:
+        description: 'Run ID of build-steam-mac (blank = latest successful)'
+        required: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows build
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-steam-windows.yml
+          run_id: ${{ inputs.windows_run_id }}
+          name: jigsaw-windows
+          path: artifacts/windows
+
+      - name: Download Linux build
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-steam-linux.yml
+          run_id: ${{ inputs.linux_run_id }}
+          name: jigsaw-linux
+          path: artifacts/linux
+
+      - name: Download macOS build
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-steam-mac.yml
+          run_id: ${{ inputs.macos_run_id }}
+          name: jigsaw-macos
+          path: artifacts/macos
+
+      - name: Upload to Steam (SteamPipe)
+        uses: game-ci/steam-deploy@v3
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: ${{ vars.STEAM_APP_ID }}
+          buildDescription: ${{ github.sha }}
+          rootPath: steam
+          firstDepotIdAndPath: # filled by the VDF scripts in steam/

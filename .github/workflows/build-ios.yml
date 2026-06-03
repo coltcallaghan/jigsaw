@@ -24,6 +24,8 @@ jobs:
         run: npm ci
 
       - name: Build web bundle
+        env:
+          VITE_RC_IOS_KEY: ${{ secrets.VITE_RC_IOS_KEY }}
         run: npm run build:web
 
       # Native project is gitignored; regenerate then sync.
@@ -32,9 +34,15 @@ jobs:
           npx cap add ios
           npx cap sync ios
 
-      - name: Archive + export IPA
+      # ios/App/ExportOptions.plist doesn't exist after cap add — seed it from the
+      # committed template and inject the real Team ID from secrets.
+      - name: Prepare ExportOptions.plist
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          sed "s/YOUR_APPLE_TEAM_ID/$APPLE_TEAM_ID/" build/ExportOptions.plist > ios/App/ExportOptions.plist
+
+      - name: Archive + export IPA
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App \

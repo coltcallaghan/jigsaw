@@ -21,7 +21,8 @@ jobs:
       - name: Package Linux
         run: npm run package:linux
 
+      # Steam ships the unpacked app, not the AppImage.
       - uses: actions/upload-artifact@v4
         with:
           name: jigsaw-linux
-          path: release/*.AppImage
+          path: release/linux-unpacked

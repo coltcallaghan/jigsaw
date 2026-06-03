@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import type { PieceCountOption } from '../puzzle/types'
-import { isNative } from '../config/platform'
 import { isPieceSizeAllowed } from '../config/unlock'
+import UpsellModal from './UpsellModal'
 
 interface SetupScreenProps {
   imageDataUrl: string
@@ -34,6 +34,9 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }: SetupScreenProps) {
   const [selected, setSelected] = useState<PieceCountOption>(100)
   const [isDragging, setIsDragging] = useState(false)
+  const [showUpsell, setShowUpsell] = useState(false)
+  // Bumped after an unlock so isPieceSizeAllowed() is re-evaluated on render.
+  const [unlockVersion, setUnlockVersion] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (file: File) => {
@@ -43,13 +46,14 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
 
   const handleSelect = (count: PieceCountOption) => {
     if (!isPieceSizeAllowed(count)) {
-      // TODO: replace with a styled themed upsell card before release.
-      alert('Unlock all puzzle sizes with a one-time purchase. (Coming soon)')
+      setShowUpsell(true)
       return
     }
     setSelected(count)
   }
 
+  // unlockVersion is read so this recomputes after a purchase/restore.
+  void unlockVersion
   const selectionAllowed = isPieceSizeAllowed(selected)
 
   return (
@@ -126,6 +130,16 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
           </div>
         </div>
       </div>
+
+      {showUpsell && (
+        <UpsellModal
+          onClose={() => setShowUpsell(false)}
+          onUnlocked={() => {
+            setShowUpsell(false)
+            setUnlockVersion(v => v + 1)
+          }}
+        />
+      )}
     </div>
   )
 }

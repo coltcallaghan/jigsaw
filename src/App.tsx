@@ -7,6 +7,7 @@ import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
 import { listSaves, getSave, type SaveData, type SaveMeta } from './utils/saveGame'
 import { AudioManager } from './audio/AudioManager'
+import { syncEntitlement } from './config/purchases'
 
 type AppScreen = GameScreen | 'settings'
 
@@ -20,6 +21,13 @@ export default function App() {
   const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
 
   const { settings, setSettings, resetSettings } = useSettings()
+
+  // Refresh the unlock entitlement from the store on launch (no-op on web/desktop).
+  useEffect(() => {
+    void syncEntitlement().catch(() => {
+      // Offline or unconfigured store — keep the cached unlock flag.
+    })
+  }, [])
 
   // Push volume/enabled settings into the audio engine whenever they change.
   useEffect(() => {

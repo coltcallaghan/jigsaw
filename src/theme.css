@@ -441,6 +441,10 @@ input[type=range].rng::-moz-range-thumb {
 .win-stat .v { font-family: var(--font-head); font-size: 1.5rem; white-space: nowrap; }
 .app[data-theme="arcade"] .win-stat .v { font-size: 1rem; }
 .win-stat .k { color: var(--text-dim); font-size: .76rem; text-transform: uppercase; letter-spacing: .1em; }
+.upsell-card {
+  width: min(420px, 92vw); padding: 30px; text-align: center;
+  display: flex; flex-direction: column; gap: 12px;
+}
 .confetti { position: absolute; top: -20px; width: 11px; height: 14px; opacity: .95; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(105vh) rotate(640deg); opacity: 1; } }
 

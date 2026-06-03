@@ -40,7 +40,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run package:mac
 
+      # Steam ships the signed .app bundle (in release/mac*/), not the DMG.
       - uses: actions/upload-artifact@v4
         with:
           name: jigsaw-macos
-          path: release/*.dmg
+          path: release/mac*/*.app

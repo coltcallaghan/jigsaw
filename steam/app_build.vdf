@@ -1,0 +1,17 @@
+// SteamPipe app build script — fill in APP_ID and the depot IDs from Steamworks.
+// Docs: https://partner.steamgames.com/doc/sdk/uploading
+"AppBuild"
+{
+	"AppID" "YOUR_STEAM_APP_ID"   // from the Steamworks app admin page
+	"Desc"  "Jigsaw build"        // shown in the Steamworks builds list
+
+	"ContentRoot" "../artifacts"  // where the per-platform builds are staged
+	"BuildOutput" "../steam_output"
+
+	"Depots"
+	{
+		"YOUR_WINDOWS_DEPOT_ID" "depot_windows.vdf"
+		"YOUR_LINUX_DEPOT_ID"   "depot_linux.vdf"
+		"YOUR_MACOS_DEPOT_ID"   "depot_macos.vdf"
+	}
+}

@@ -3,6 +3,7 @@ name: Build Android
 # Requires signing secrets:
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 #   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Optional (RevenueCat IAP): VITE_RC_ANDROID_KEY
 # Enable the tag trigger once these are configured.
 on:
   workflow_dispatch:
@@ -27,6 +28,8 @@ jobs:
         run: npm ci
 
       - name: Build web bundle
+        env:
+          VITE_RC_ANDROID_KEY: ${{ secrets.VITE_RC_ANDROID_KEY }}
         run: npm run build:web
 
       # Native project is gitignored; regenerate then sync.
@@ -35,11 +38,27 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Assemble release APK
+      - name: Decode signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+
+      # Play requires an AAB for new apps. Sign via Gradle -P properties so we
+      # don't have to edit the regenerated build.gradle.
+      - name: Build signed release bundle (AAB)
         working-directory: android
-        run: ./gradlew assembleRelease
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
 
       - uses: actions/upload-artifact@v4
         with:
           name: jigsaw-android
-          path: android/app/build/outputs/**/*.apk
+          path: android/app/build/outputs/bundle/release/*.aab

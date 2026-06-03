@@ -1,0 +1,10 @@
+"DepotBuild"
+{
+	"DepotID" "YOUR_MACOS_DEPOT_ID"
+	"FileMapping"
+	{
+		"LocalPath" "macos/*"   // the .app bundle from mac-unpacked
+		"DepotPath" "."
+		"recursive" "1"
+	}
+}

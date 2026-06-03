@@ -38,12 +38,13 @@
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
     "@pixi/assets": "^7.4.0",
+    "@revenuecat/purchases-capacitor": "^13.1.4",
     "pixi.js": "^8.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
   "build": {
-    "appId": "com.jigsaw.app",
+    "appId": "com.coltcallaghan.jigsaw",
     "productName": "Jigsaw",
     "directories": {
       "output": "release"
