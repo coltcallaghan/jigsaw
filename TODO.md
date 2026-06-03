@@ -13,7 +13,10 @@ Legend: 🔴 blocks a good first release · 🟡 should-have · 🟢 nice-to-hav
 The audio **engine is fully wired** ([`src/audio/`](./src/audio/), see
 [`AUDIO_NOTES.md`](./AUDIO_NOTES.md)) but **no sound files are committed** —
 `public/audio/{sfx,music}/` contain only `.gitkeep`, so the game currently ships
-silent. Missing files are skipped gracefully, so this is content-only work.
+silent. Missing files are skipped gracefully, so this is content-only work
+(licensed binaries must be sourced by hand — can't be code-generated).
+
+Run **`npm run check:audio`** to see which of the 10 expected files are present.
 
 - [ ] Add 6 SFX files to `public/audio/sfx/` (exact names in
       [`public/audio/README.md`](./public/audio/README.md)):

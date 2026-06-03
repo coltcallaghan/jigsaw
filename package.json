@@ -16,7 +16,8 @@
     "package:linux": "electron-builder --linux",
     "sync:mobile": "npm run build:web && npx cap sync",
     "open:ios": "npx cap open ios",
-    "open:android": "npx cap open android"
+    "open:android": "npx cap open android",
+    "check:audio": "node scripts/check-audio.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
