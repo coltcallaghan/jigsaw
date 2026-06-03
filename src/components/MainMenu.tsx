@@ -143,6 +143,7 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
                 <button
                   className="btn btn-icon btn-ghost"
                   title="Rename"
+                  aria-label={`Rename ${save.imageName}`}
                   onClick={e => startRename(save, e)}
                 >
                   <Icon name="pencil" size={18} />
@@ -150,6 +151,7 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
                 <button
                   className="btn btn-icon btn-ghost"
                   title="Delete"
+                  aria-label={`Delete ${save.imageName}`}
                   onClick={e => handleDelete(save.id, e)}
                 >
                   <Icon name="trash" size={18} />

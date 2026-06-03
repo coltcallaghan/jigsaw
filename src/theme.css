@@ -583,6 +583,11 @@ input[type=range].rng::-moz-range-thumb {
 
 /* ── ANIMATION ───────────────────────────────────────────── */
 .fade-in { animation: fadeUp .35s var(--ease); }
-@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .fade-in { animation: none; }
+  /* Honor reduced-motion: drop falling confetti and stop the loading spinner. */
+  .confetti { display: none; }
+  [style*="animation: spin"] { animation: none !important; }
+}

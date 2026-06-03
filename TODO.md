@@ -65,9 +65,13 @@ Remaining (config / store, once the Steam app exists):
 ## Polish / nice-to-have 🟢
 
 - [x] Removed dev `console.log` from the achievements path.
-- [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf).
-- [ ] Accessibility pass: keyboard nav, focus states, reduced-motion for confetti.
-- [ ] Loading/progress indicator while generating very large puzzles.
+- [x] Loading indicator while cutting pieces (spinner + "Cutting N pieces…").
+- [x] `prefers-reduced-motion`: hides confetti + stops the loading spinner.
+- [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
+- [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
+      — manual QA on device/desktop.
+- [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
+      order audit (beyond the labels above).
 
 ---
 
