@@ -98,21 +98,28 @@ export default function SettingsScreen({ settings, onChange, onReset, onBack }: 
           </>}
 
           {tab === 'audio' && <>
-            <div style={{ padding: '14px 22px', fontSize: '.85rem', color: 'var(--text-dim)', borderBottom: 'var(--border-w) solid var(--ink)' }}>
-              Audio is not yet implemented. See AUDIO_NOTES.md.
-            </div>
             <div className="setting-row">
               <div><div className="lab">Master volume</div></div>
               <input className="rng" type="range" min="0" max="100" value={settings.masterVolume} style={{ width: 170 }}
                 onChange={e => set('masterVolume', parseInt(e.target.value))} />
             </div>
             <div className="setting-row">
-              <div><div className="lab">Snap sound effects</div><div className="desc">Satisfying click when a piece locks</div></div>
+              <div><div className="lab">Sound effects</div><div className="desc">Satisfying click when a piece locks</div></div>
               <Toggle on={settings.sfxEnabled} onClick={() => set('sfxEnabled', !settings.sfxEnabled)} />
             </div>
             <div className="setting-row">
-              <div><div className="lab">Background music</div></div>
+              <div><div className="lab">SFX volume</div></div>
+              <input className="rng" type="range" min="0" max="100" value={settings.sfxVolume} style={{ width: 170 }}
+                onChange={e => set('sfxVolume', parseInt(e.target.value))} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Background music</div><div className="desc">Looping track matched to the theme</div></div>
               <Toggle on={settings.musicEnabled} onClick={() => set('musicEnabled', !settings.musicEnabled)} />
+            </div>
+            <div className="setting-row">
+              <div><div className="lab">Music volume</div></div>
+              <input className="rng" type="range" min="0" max="100" value={settings.musicVolume} style={{ width: 170 }}
+                onChange={e => set('musicVolume', parseInt(e.target.value))} />
             </div>
           </>}
 

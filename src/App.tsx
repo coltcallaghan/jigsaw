@@ -6,6 +6,7 @@ import SettingsScreen from './components/SettingsScreen'
 import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
 import { listSaves, getSave, type SaveData, type SaveMeta } from './utils/saveGame'
+import { AudioManager } from './audio/AudioManager'
 
 type AppScreen = GameScreen | 'settings'
 
@@ -19,6 +20,26 @@ export default function App() {
   const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
 
   const { settings, setSettings, resetSettings } = useSettings()
+
+  // Push volume/enabled settings into the audio engine whenever they change.
+  useEffect(() => {
+    AudioManager.setVolumes({
+      master: settings.masterVolume / 100,
+      music: settings.musicVolume / 100,
+      sfx: settings.sfxVolume / 100,
+      sfxEnabled: settings.sfxEnabled,
+      musicEnabled: settings.musicEnabled,
+    })
+  }, [settings.masterVolume, settings.musicVolume, settings.sfxVolume, settings.sfxEnabled, settings.musicEnabled])
+
+  // Background music follows the active theme while in a game; stop elsewhere.
+  useEffect(() => {
+    if (screen === 'game' && settings.musicEnabled) {
+      AudioManager.playMusic(settings.theme)
+    } else {
+      AudioManager.stopMusic()
+    }
+  }, [screen, settings.theme, settings.musicEnabled])
 
   const handleImageSelected = (dataUrl: string, name: string) => {
     setImageDataUrl(dataUrl)

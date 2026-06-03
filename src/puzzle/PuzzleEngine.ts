@@ -10,6 +10,7 @@ import type { PieceDefinition, PuzzleConfig } from './types'
 import { buildPiecePath, computeGrid, generatePieces, renderPieceTextures } from './generator'
 import type { PieceState } from '../utils/saveGame'
 import type { Theme } from '../hooks/useSettings'
+import { AudioManager } from '../audio/AudioManager'
 
 let SNAP_DISTANCE = 0.5  // fraction of piece size to trigger snap — overridable via setSnapSensitivity()
 const TAB_PAD_FRAC = 0.35 * 1.5
@@ -274,6 +275,7 @@ export class PuzzleEngine {
     e.stopPropagation()
     this.dragging = sprite
     sprite.cursor = 'grabbing'
+    AudioManager.play('piece_pickup')
 
     // Arm long-press-to-stash (touch equivalent of right-click)
     this.armLongPress(sprite, e.globalX, e.globalY)
@@ -476,6 +478,7 @@ export class PuzzleEngine {
         sprite.y = expectedY
         sprite.rotation = 0
         this.mergeGroups(sprite, neighbour)
+        AudioManager.play('piece_group')
         this.checkAllSnapped(sprite)
         break
       }
@@ -493,6 +496,7 @@ export class PuzzleEngine {
       sprite.cursor = 'default'
       sprite.eventMode = 'none'   // clicks pass through to pieces below
       this.addPlacedBorder(sprite, this.definitions[sprite.pieceId])
+      AudioManager.play('piece_snap')
       this.placedCount++
       this.onProgress(this.placedCount, this.definitions.length)
       if (this.placedCount === this.definitions.length) this.onComplete()
@@ -647,6 +651,7 @@ export class PuzzleEngine {
     sprite.inTray = true
     sprite.visible = false
     this.trayOrder.push(sprite.pieceId)
+    AudioManager.play('tray_add')
     this.onTrayUpdate(this.getTrayPieceIds())
   }
 
@@ -656,6 +661,7 @@ export class PuzzleEngine {
     sprite.inTray = true
     sprite.visible = false
     this.trayOrder.push(pieceId)
+    AudioManager.play('tray_add')
     this.onTrayUpdate(this.getTrayPieceIds())
   }
 
@@ -674,6 +680,7 @@ export class PuzzleEngine {
       ;[newIds[i], newIds[j]] = [newIds[j], newIds[i]]
     }
     this.trayOrder.push(...newIds)
+    if (newIds.length > 0) AudioManager.play('tray_add')
     this.onTrayUpdate(this.getTrayPieceIds())
   }
 
@@ -683,6 +690,7 @@ export class PuzzleEngine {
     sprite.inTray = false
     sprite.visible = true
     this.trayOrder = this.trayOrder.filter(id => id !== pieceId)
+    AudioManager.play('tray_retrieve')
     this.onTrayUpdate(this.getTrayPieceIds())
   }
 

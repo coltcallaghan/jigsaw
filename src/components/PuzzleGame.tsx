@@ -8,6 +8,7 @@ import { writeSave, makeThumbnail } from '../utils/saveGame'
 import PieceTray from './PieceTray'
 import ZoomPanControls from './ZoomPanControls'
 import { getAchievementForPieceCount, unlockAchievement } from '../steam/achievements'
+import { AudioManager } from '../audio/AudioManager'
 
 interface PuzzleGameProps {
   config: PuzzleConfig
@@ -70,6 +71,7 @@ export default function PuzzleGame({
 
   const handleComplete = useCallback(() => {
     setIsComplete(true)
+    AudioManager.play('puzzle_complete')
     if (timerRef.current) clearInterval(timerRef.current)
     const ach = getAchievementForPieceCount(config.pieceCount)
     if (ach) unlockAchievement(ach)
