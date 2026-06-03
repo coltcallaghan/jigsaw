@@ -1,11 +1,28 @@
 import React, { useState } from 'react'
 import type { GameSettings, Theme } from '../hooks/useSettings'
 
-const THEMES: { id: Theme; label: string; color: string }[] = [
-  { id: 'cartoon', label: 'Cartoon', color: '#FF7A4D' },
-  { id: 'modern',  label: 'Modern',  color: '#4F46E5' },
-  { id: 'dark',    label: 'Dark',    color: '#6C8CFF' },
-  { id: 'arcade',  label: 'Arcade',  color: '#FF2E97' },
+interface ThemePreview {
+  id: Theme
+  label: string
+  font: string
+  bg: string
+  text: string
+  accent: string     // brand highlight colour (the "W"), matching brand-title .o
+  border: string     // fixed border colour so the card keeps its own look
+  radius: string     // theme's corner radius
+  weight: number     // theme's heading weight
+  spacing: string    // theme's heading letter-spacing
+  markSize: string   // wordmark font-size (arcade's pixel font is smaller)
+}
+
+// Each preview is rendered with FIXED values (not active-theme tokens) so it
+// always shows that theme's true look regardless of the current theme.
+// Values mirror the theme.css tokens for each theme.
+const THEMES: ThemePreview[] = [
+  { id: 'cartoon', label: 'Cartoon', font: "'Baloo 2', system-ui, sans-serif",          bg: '#FFE7C2', text: '#3A2A22', accent: '#FF7A4D', border: '#2B2B2B', radius: '14px', weight: 800, spacing: '0',      markSize: '1.5rem' },
+  { id: 'modern',  label: 'Modern',  font: "'Plus Jakarta Sans', system-ui, sans-serif", bg: '#F4F6FB', text: '#111827', accent: '#4F46E5', border: '#E4E8EF', radius: '11px', weight: 700, spacing: '-.02em', markSize: '1.4rem' },
+  { id: 'dark',    label: 'Dark',    font: "'Space Grotesk', system-ui, sans-serif",     bg: '#0A0D14', text: '#EAEEF7', accent: '#6C8CFF', border: '#2A3142', radius: '11px', weight: 600, spacing: '-.01em', markSize: '1.4rem' },
+  { id: 'arcade',  label: 'Arcade',  font: "'Press Start 2P', system-ui, sans-serif",    bg: '#140426', text: '#FDEBFF', accent: '#FF2E97', border: '#07F2E6', radius: '2px',  weight: 400, spacing: '0',      markSize: '.78rem' },
 ]
 
 interface SettingsScreenProps {
@@ -60,21 +77,40 @@ export default function SettingsScreen({ settings, onChange, onReset, onBack }: 
 
         <div className="card" style={{ width: 'min(560px, 94vw)' }}>
           {tab === 'visual' && <>
-            <div className="setting-row">
+            <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
               <div>
                 <div className="lab">Theme</div>
                 <div className="desc">Visual style and colour palette</div>
               </div>
-              <div className="swatch-row">
-                {THEMES.map(t => (
-                  <span
-                    key={t.id}
-                    className={`swatch${settings.theme === t.id ? ' sel' : ''}`}
-                    style={{ background: t.color }}
-                    onClick={() => set('theme', t.id)}
-                    title={t.label}
-                  />
-                ))}
+              <div className="theme-preview-grid">
+                {THEMES.map(t => {
+                  const selected = settings.theme === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`theme-preview${selected ? ' sel' : ''}`}
+                      style={{
+                        background: t.bg,
+                        color: t.text,
+                        borderColor: t.border,
+                        borderRadius: t.radius,
+                        boxShadow: selected ? `0 0 0 3px ${t.accent}` : undefined,
+                      }}
+                      onClick={() => set('theme', t.id)}
+                      title={t.label}
+                      aria-pressed={selected}
+                    >
+                      <span className="theme-preview-mark"
+                        style={{ fontFamily: t.font, fontSize: t.markSize, fontWeight: t.weight, letterSpacing: t.spacing }}>
+                        JIGSA<span style={{ color: t.accent }}>W</span>
+                      </span>
+                      <span className="theme-preview-name" style={{ fontFamily: t.font, color: t.accent }}>
+                        {t.label}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="setting-row">

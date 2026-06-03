@@ -278,6 +278,24 @@ h1, h2, h3 {
 .swatch:hover { transform: scale(1.08); }
 .swatch.sel { outline: 3px solid var(--primary); outline-offset: 2px; }
 
+/* Theme picker: each option previews the JIGSAW wordmark in that theme.
+   All visual values are set INLINE per theme (border/radius/colour) so a
+   preview always shows its own theme, independent of the active theme. */
+.theme-preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 480px) { .theme-preview-grid { grid-template-columns: 1fr; } }
+.theme-preview {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 14px 16px; cursor: pointer; text-align: left; overflow: hidden;
+  border: 2px solid; /* colour + radius come from inline style */
+  transition: transform .12s cubic-bezier(.22,1,.36,1), box-shadow .15s;
+  /* Sit above the arcade scanline overlay (z-index 40) so previews of OTHER
+     themes aren't painted with the active theme's full-screen effects. */
+  position: relative; z-index: 41;
+}
+.theme-preview:hover { transform: translateY(-2px); }
+.theme-preview-mark { line-height: 1; white-space: nowrap; max-width: 100%; }
+.theme-preview-name { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
+
 input[type=range].rng {
   -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px;
   background: color-mix(in srgb, var(--text) 18%, transparent); outline: none; cursor: pointer;

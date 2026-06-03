@@ -834,21 +834,40 @@ export class PuzzleEngine {
     }
   }
 
+  /**
+   * Two-tone outline: a wider dark "halo" stroke underneath plus a thinner
+   * light stroke on top. The pairing stays visible on any image — the dark
+   * halo reads against light areas, the light line reads against dark areas.
+   * `accent` lets a theme tint the top line (e.g. arcade neon).
+   */
   private buildEdgeGraphics(def: PieceDefinition): Graphics {
-    const edgeStyle: Record<Theme, { color: number; width: number; alpha: number }> = {
-      cartoon: { color: 0x2B2B2B, width: 1.5, alpha: 0.55 },
-      modern:  { color: 0x111827, width: 0.8, alpha: 0.15 },
-      dark:    { color: 0xEAEEF7, width: 1.0, alpha: 0.30 },
-      arcade:  { color: 0x07F2E6, width: 1.5, alpha: 0.65 },
+    type EdgeStyle = {
+      dark: number; light: number
+      darkAlpha: number; lightAlpha: number
+      darkWidth: number; lightWidth: number
     }
-    const style = edgeStyle[this.theme]
+    const edgeStyle: Record<Theme, EdgeStyle> = {
+      cartoon: { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.45, lightAlpha: 0.55, darkWidth: 3.0, lightWidth: 1.4 },
+      modern:  { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.40, lightAlpha: 0.55, darkWidth: 2.6, lightWidth: 1.2 },
+      dark:    { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.50, lightAlpha: 0.65, darkWidth: 2.8, lightWidth: 1.2 },
+      arcade:  { dark: 0x000000, light: 0x07F2E6, darkAlpha: 0.55, lightAlpha: 0.85, darkWidth: 3.0, lightWidth: 1.5 },
+    }
+    const s = edgeStyle[this.theme]
+    const path = buildPiecePath(def.edges, def.srcW, def.srcH)
+
     const g = new Graphics()
     g.label = 'edge'
     g.eventMode = 'none'
     g.x = -def.srcW / 2
     g.y = -def.srcH / 2
-    this.applyPathToGraphics(buildPiecePath(def.edges, def.srcW, def.srcH), g)
-    g.stroke({ color: style.color, width: style.width, alpha: style.alpha })
+
+    // Dark halo first (underneath)
+    this.applyPathToGraphics(path, g)
+    g.stroke({ color: s.dark, width: s.darkWidth, alpha: s.darkAlpha })
+    // Light line on top
+    this.applyPathToGraphics(path, g)
+    g.stroke({ color: s.light, width: s.lightWidth, alpha: s.lightAlpha })
+
     return g
   }
 
