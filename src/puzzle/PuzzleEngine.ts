@@ -14,6 +14,14 @@ import type { Theme } from '../hooks/useSettings'
 let SNAP_DISTANCE = 0.5  // fraction of piece size to trigger snap — overridable via setSnapSensitivity()
 const TAB_PAD_FRAC = 0.35 * 1.5
 
+// Board "felt" colour per theme — mirrors the --board-felt CSS tokens in theme.css
+const THEME_FELT: Record<Theme, number> = {
+  cartoon: 0xB9E6FF,
+  modern:  0xE8ECF4,
+  dark:    0x0E1320,
+  arcade:  0x0D0220,
+}
+
 export interface PuzzleEngineOptions {
   canvas: HTMLCanvasElement
   config: PuzzleConfig
@@ -69,6 +77,20 @@ export class PuzzleEngine {
   private boardStartX = 0
   private boardStartY = 0
 
+  // Multi-touch pinch state — tracks active pointers by id
+  private activePointers: Map<number, { x: number; y: number }> = new Map()
+  private pinchStartDist = 0
+  private pinchStartScale = 1
+  private isPinching = false
+
+  // Long-press-to-stash (touch equivalent of right-click)
+  private static readonly LONG_PRESS_MS = 500
+  private static readonly LONG_PRESS_MOVE_TOL = 12  // px of movement that cancels a long-press
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null
+  private longPressSprite: PieceSprite | null = null
+  private longPressStartX = 0
+  private longPressStartY = 0
+
   // Groups of snapped-together pieces
   private groups: Map<number, Set<number>> = new Map()
   private nextGroupId = 1
@@ -104,11 +126,13 @@ export class PuzzleEngine {
     const w = canvas.clientWidth || canvas.offsetWidth || window.innerWidth
     const h = canvas.clientHeight || canvas.offsetHeight || window.innerHeight
 
+    const felt = THEME_FELT[this.theme] ?? THEME_FELT.dark
+
     await this.app.init({
       canvas,
       width: w,
       height: h,
-      background: 0x16213e,
+      background: felt,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
@@ -145,7 +169,7 @@ export class PuzzleEngine {
     // Build ghost image layer (board bg is added inside, before the ghost sprite)
     await this.buildGhostLayer(img)
     // Initial board area highlight using the default background colour
-    this.rebuildBoardBg(0x16213e)
+    this.rebuildBoardBg(felt)
 
     // Build all piece sprites
     for (const def of this.definitions) {
@@ -206,9 +230,14 @@ export class PuzzleEngine {
     this.app.stage.eventMode = 'static'
     this.app.stage.hitArea = this.app.screen
     this.app.stage.on('pointermove', (e: FederatedPointerEvent) => this.onStageMove(e))
-    this.app.stage.on('pointerup', () => this.onStageUp())
-    this.app.stage.on('pointerupoutside', () => this.onStageUp())
+    this.app.stage.on('pointerup', (e: FederatedPointerEvent) => this.onStageUp(e))
+    this.app.stage.on('pointerupoutside', (e: FederatedPointerEvent) => this.onStageUp(e))
+    this.app.stage.on('pointercancel', (e: FederatedPointerEvent) => this.onStageUp(e))
     this.app.stage.on('pointerdown', (e: FederatedPointerEvent) => this.onStageDown(e))
+
+    // Prevent the browser from claiming touch gestures (scroll/zoom) over the canvas,
+    // so PixiJS pointer events drive pan / drag / pinch instead.
+    canvas.style.touchAction = 'none'
 
     // Wheel zoom + suppress browser context menu so right-click works for tray
     canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false })
@@ -241,9 +270,13 @@ export class PuzzleEngine {
 
   private onPieceDown(sprite: PieceSprite, e: FederatedPointerEvent) {
     if (sprite.placed) return   // locked — cannot move placed pieces
+    if (this.isPinching) return // ignore piece grabs mid-pinch
     e.stopPropagation()
     this.dragging = sprite
     sprite.cursor = 'grabbing'
+
+    // Arm long-press-to-stash (touch equivalent of right-click)
+    this.armLongPress(sprite, e.globalX, e.globalY)
 
     const local = this.piecesLayer.toLocal(e.global)
     this.dragOffX = local.x - sprite.x
@@ -267,7 +300,15 @@ export class PuzzleEngine {
   }
 
   private onStageDown(e: FederatedPointerEvent) {
-    if (!this.dragging) {
+    this.activePointers.set(e.pointerId, { x: e.globalX, y: e.globalY })
+
+    // A second pointer begins a pinch — cancel any in-progress drag/pan/long-press
+    if (this.activePointers.size === 2) {
+      this.beginPinch()
+      return
+    }
+
+    if (!this.dragging && this.activePointers.size === 1) {
       this.isPanning = true
       this.panStartX = e.globalX
       this.panStartY = e.globalY
@@ -277,7 +318,22 @@ export class PuzzleEngine {
   }
 
   private onStageMove(e: FederatedPointerEvent) {
+    if (this.activePointers.has(e.pointerId)) {
+      this.activePointers.set(e.pointerId, { x: e.globalX, y: e.globalY })
+    }
+
+    if (this.isPinching) {
+      this.updatePinch()
+      return
+    }
+
     if (this.dragging) {
+      // Movement beyond tolerance cancels the pending long-press (it's now a drag)
+      if (this.longPressTimer &&
+          Math.hypot(e.globalX - this.longPressStartX, e.globalY - this.longPressStartY) > PuzzleEngine.LONG_PRESS_MOVE_TOL) {
+        this.cancelLongPress()
+      }
+
       const local = this.piecesLayer.toLocal(e.global)
       const dx = local.x - this.dragOffX - this.dragging.x
       const dy = local.y - this.dragOffY - this.dragging.y
@@ -305,13 +361,85 @@ export class PuzzleEngine {
     }
   }
 
-  private onStageUp() {
+  private onStageUp(e?: FederatedPointerEvent) {
+    if (e) this.activePointers.delete(e.pointerId)
+
+    this.cancelLongPress()
+
     if (this.dragging) {
       this.dragging.cursor = 'grab'
       this.trySnap(this.dragging)
       this.dragging = null
     }
     this.isPanning = false
+
+    // Dropping below two pointers ends the pinch
+    if (this.isPinching && this.activePointers.size < 2) {
+      this.isPinching = false
+    }
+  }
+
+  // ─── Pinch zoom ──────────────────────────────────────────────────────────
+
+  private pointerPair(): [{ x: number; y: number }, { x: number; y: number }] | null {
+    const pts = [...this.activePointers.values()]
+    if (pts.length < 2) return null
+    return [pts[0], pts[1]]
+  }
+
+  private beginPinch() {
+    const pair = this.pointerPair()
+    if (!pair) return
+    // Abandon single-touch interactions so they don't fight the pinch
+    this.cancelLongPress()
+    if (this.dragging) { this.dragging.cursor = 'grab'; this.dragging = null }
+    this.isPanning = false
+    this.isPinching = true
+    this.pinchStartDist = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y) || 1
+    this.pinchStartScale = this.board.scale.x
+  }
+
+  private updatePinch() {
+    const pair = this.pointerPair()
+    if (!pair) return
+    const dist = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y) || 1
+    const midX = (pair[0].x + pair[1].x) / 2
+    const midY = (pair[0].y + pair[1].y) / 2
+
+    const newScale = Math.max(0.05, Math.min(4, this.pinchStartScale * (dist / this.pinchStartDist)))
+    // Keep the gesture midpoint anchored in world space while scaling
+    const worldX = (midX - this.board.x) / this.board.scale.x
+    const worldY = (midY - this.board.y) / this.board.scale.y
+    this.board.scale.set(newScale)
+    this.board.x = midX - worldX * newScale
+    this.board.y = midY - worldY * newScale
+  }
+
+  // ─── Long-press to stash ───────────────────────────────────────────────────
+
+  private armLongPress(sprite: PieceSprite, globalX: number, globalY: number) {
+    this.cancelLongPress()
+    if (sprite.placed || sprite.inTray) return
+    this.longPressSprite = sprite
+    this.longPressStartX = globalX
+    this.longPressStartY = globalY
+    this.longPressTimer = setTimeout(() => {
+      const s = this.longPressSprite
+      this.longPressTimer = null
+      if (s && !s.placed && !s.inTray) {
+        // Stash the piece; abandon the drag that was in progress
+        if (this.dragging === s) { this.dragging = null }
+        this.sendToTray(s.pieceId)
+      }
+    }, PuzzleEngine.LONG_PRESS_MS)
+  }
+
+  private cancelLongPress() {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer)
+      this.longPressTimer = null
+    }
+    this.longPressSprite = null
   }
 
   // ─── Snap logic ─────────────────────────────────────────────────────────
@@ -758,6 +886,7 @@ export class PuzzleEngine {
 
   destroy() {
     this.destroyed = true
+    this.cancelLongPress()
     cancelAnimationFrame(this.rafId)
     if (this.appInitialized) {
       this.app.destroy(false, { children: true, texture: true })

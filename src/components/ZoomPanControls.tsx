@@ -63,36 +63,45 @@ export default function ZoomPanControls({ onZoomIn, onZoomOut, onPan, onFit }: Z
   const zIn   = useHoldRepeat(onZoomIn)
   const zOut  = useHoldRepeat(onZoomOut)
 
+  const fitBtn = (
+    <button
+      className="dpad-btn dpad-fit"
+      title="Fit all pieces"
+      onClick={onFit}
+      onContextMenu={e => e.preventDefault()}
+    >
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="1" y="1" width="5" height="5" rx="0.5" />
+        <rect x="10" y="1" width="5" height="5" rx="0.5" />
+        <rect x="1" y="10" width="5" height="5" rx="0.5" />
+        <rect x="10" y="10" width="5" height="5" rx="0.5" />
+      </svg>
+    </button>
+  )
+
   return (
     <div className="zoom-cluster" onContextMenu={e => e.preventDefault()}>
+      {/* Pan/zoom buttons are desktop affordances — hidden on touch, where
+          one-finger pan and pinch-zoom replace them (see theme.css). */}
       <div className="dpad">
         <span />
         <DpadBtn label="↑" onStart={up.start} onStop={up.stop} title="Pan up" />
         <span />
         <DpadBtn label="←" onStart={left.start} onStop={left.stop} title="Pan left" />
-        <button
-          className="dpad-btn"
-          title="Fit all pieces"
-          onClick={onFit}
-          onContextMenu={e => e.preventDefault()}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <rect x="1" y="1" width="5" height="5" rx="0.5" />
-            <rect x="10" y="1" width="5" height="5" rx="0.5" />
-            <rect x="1" y="10" width="5" height="5" rx="0.5" />
-            <rect x="10" y="10" width="5" height="5" rx="0.5" />
-          </svg>
-        </button>
+        {fitBtn}
         <DpadBtn label="→" onStart={right.start} onStop={right.stop} title="Pan right" />
         <span />
         <DpadBtn label="↓" onStart={down.start} onStop={down.stop} title="Pan down" />
         <span />
       </div>
 
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div className="zoom-btns">
         <DpadBtn label="−" onStart={zOut.start} onStop={zOut.stop} title="Zoom out" />
         <DpadBtn label="+" onStart={zIn.start} onStop={zIn.stop} title="Zoom in" />
       </div>
+
+      {/* On mobile, the d-pad grid collapses to just this Fit button. */}
+      <div className="dpad-fit-mobile">{fitBtn}</div>
     </div>
   )
 }

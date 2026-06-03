@@ -33,6 +33,8 @@ export default function PuzzleGame({
   const [ghostOpacity, setGhostOpacity] = useState(INITIAL_GHOST)
   const [trayPieceIds, setTrayPieceIds] = useState<number[]>([])
   const [showTray, setShowTray] = useState(true)
+  const [trayCollapsed, setTrayCollapsed] = useState(false)
+  const [showGhostSlider, setShowGhostSlider] = useState(false)
   const [elapsed, setElapsed] = useState(savedElapsed)
   const [isLoading, setIsLoading] = useState(true)
   const startTimeRef = useRef<number>(0)
@@ -175,18 +177,28 @@ export default function PuzzleGame({
           <span className="stat">◴ {formatTime(elapsed)}</span>
         )}
 
-        <div className="hud-group">
+        {/* Desktop: inline ghost slider. Mobile: a button that pops up the
+            slider over the board (see below) so the HUD stays uncluttered. */}
+        <div className="hud-group hide-mobile">
           <span className="stat" style={{ fontSize: '.85rem' }}>Ghost</span>
           <input className="rng" type="range" min={0} max={1.0} step={0.05}
             value={ghostOpacity} style={{ width: 88 }} onChange={handleGhostChange} />
         </div>
+
+        <button
+          className={`btn btn-sm show-mobile${showGhostSlider ? ' btn-primary' : ' btn-ghost'}`}
+          onClick={() => setShowGhostSlider(v => !v)}
+          title="Adjust ghost image opacity"
+        >
+          Ghost
+        </button>
 
         <button className="btn btn-ghost btn-sm" onClick={() => engineRef.current?.addAllToTray()}>
           Tray all
         </button>
 
         <button
-          className={`btn btn-sm${settings.outlines ? ' btn-primary' : ' btn-ghost'}`}
+          className={`btn btn-sm hide-mobile${settings.outlines ? ' btn-primary' : ' btn-ghost'}`}
           onClick={() => onSettingsChange({ outlines: !settings.outlines })}
           title="Toggle piece edge outlines"
         >
@@ -194,14 +206,14 @@ export default function PuzzleGame({
         </button>
 
         <button
-          className={`btn btn-sm${showTray ? ' btn-primary' : ' btn-ghost'}`}
+          className={`btn btn-sm hide-mobile${showTray ? ' btn-primary' : ' btn-ghost'}`}
           onClick={() => setShowTray(v => !v)}
         >
           Tray{trayPieceIds.length > 0 ? ` · ${trayPieceIds.length}` : ''}
         </button>
 
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm hide-mobile"
           title="Save progress"
           onClick={() => {
             const engine = engineRef.current
@@ -232,23 +244,43 @@ export default function PuzzleGame({
               onFit={() => engineRef.current?.centerCamera()}
             />
           )}
+
+          {/* Mobile ghost-opacity popup — floats above the board so the
+              puzzle stays visible while adjusting. */}
+          {showGhostSlider && (
+            <div className="ghost-popup">
+              <span className="stat" style={{ fontSize: '.85rem' }}>Ghost</span>
+              <input className="rng" type="range" min={0} max={1.0} step={0.05}
+                value={ghostOpacity} onChange={handleGhostChange} />
+              <button className="ghost-popup-close" onClick={() => setShowGhostSlider(false)} aria-label="Close">✕</button>
+            </div>
+          )}
         </div>
 
         {showTray && (
-          <div className="tray">
-            <div className="tray-head">
+          <div className={`tray${trayCollapsed ? ' tray-collapsed' : ''}`}>
+            <button
+              className="tray-head"
+              onClick={() => setTrayCollapsed(v => !v)}
+              title={trayCollapsed ? 'Expand tray' : 'Collapse tray'}
+            >
               <span>Piece Tray</span>
-              <span>{trayPieceIds.length}</span>
-            </div>
-            <PieceTray
-              pieceIds={trayPieceIds}
-              pieces={pieceDefs}
-              imageDataUrl={config.imageDataUrl}
-              imageWidth={config.imageWidth}
-              imageHeight={config.imageHeight}
-              theme={settings.theme}
-              onRetrieve={handleRetrieve}
-            />
+              <span className="tray-head-right">
+                <span className="tray-count">{trayPieceIds.length}</span>
+                <span className="tray-caret" aria-hidden>{trayCollapsed ? '▴' : '▾'}</span>
+              </span>
+            </button>
+            {!trayCollapsed && (
+              <PieceTray
+                pieceIds={trayPieceIds}
+                pieces={pieceDefs}
+                imageDataUrl={config.imageDataUrl}
+                imageWidth={config.imageWidth}
+                imageHeight={config.imageHeight}
+                theme={settings.theme}
+                onRetrieve={handleRetrieve}
+              />
+            )}
           </div>
         )}
       </div>

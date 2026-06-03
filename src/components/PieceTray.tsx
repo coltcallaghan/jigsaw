@@ -30,7 +30,7 @@ export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, 
   return (
     <div className="tray-body">
       {pieceIds.length === 0 && (
-        <div className="tray-empty">Tray is empty.<br />Right-click a piece to stash it.</div>
+        <div className="tray-empty">Tray is empty.<br />Right-click (or long-press) a piece to stash it.</div>
       )}
       {pieceIds.map(id => {
         const def = defMap.get(id)
