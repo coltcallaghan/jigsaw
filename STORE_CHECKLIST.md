@@ -4,6 +4,9 @@ The repo is wired for multi-platform builds (see `MULTIPLATFORM_PLAN.md`). What'
 left is mostly **accounts, signing material, store listings, and policy** — work
 that can't live in the repo. This file tracks it.
 
+> For outstanding work *inside the app* (audio files, achievements, etc.), see
+> [`TODO.md`](./TODO.md).
+
 App ID (permanent once submitted): **`com.coltcallaghan.jigsaw`**
 Unlock product ID: **`com.coltcallaghan.jigsaw.unlock_all`**
 Unlock entitlement (RevenueCat): **`unlock_all_sizes`**
