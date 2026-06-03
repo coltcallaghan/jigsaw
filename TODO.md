@@ -45,32 +45,23 @@ not code:
 
 > Details and secret inventory: `STORE_CHECKLIST.md`.
 
-## Steam achievements 🟡
+## Steam achievements 🟡 (wired — needs App ID + dashboard config)
 
-[`src/steam/achievements.ts`](./src/steam/achievements.ts) is a **stub** — the IDs
-and helpers exist but `unlockAchievement()` is **never called anywhere**, and it
-relies on a `window.steamAPI` bridge that isn't wired in the Electron preload.
+Fully wired: [`electron/steam.ts`](./electron/steam.ts) owns the `steamworks.js`
+client in the main process, exposed to the renderer as `window.steamAPI` via the
+preload. [`src/steam/achievements.ts`](./src/steam/achievements.ts) calls it, and
+`PuzzleGame.handleComplete` already fires per-size + `FIRST_PUZZLE` + `SPEED_RUN`.
+Everything degrades to a no-op without Steam / an App ID, so nothing left in code.
 
-- [ ] Decide the achievement set (per-size completions + speed run are scaffolded).
-- [ ] Expose a real Steamworks bridge (e.g. `steamworks.js`) via the Electron
-      preload as `window.steamAPI`.
-- [ ] Call `unlockAchievement(...)` on puzzle completion (`PuzzleGame.handleComplete`)
-      using `getAchievementForPieceCount(count)` + `FIRST_PUZZLE` / `SPEED_RUN`.
-- [ ] Define the achievements in the Steamworks dashboard with matching IDs.
-
-## Setup screen — drag/replace image 🟡
-
-[`SetupScreen.handleFile`](./src/components/SetupScreen.tsx) is a no-op: dropping
-or "Replace image" on the setup screen does nothing (re-selection only works from
-the main menu).
-
-- [ ] Lift image selection state up, or pass an `onImageSelected` callback into
-      `SetupScreen`, so drag-drop / replace actually swaps the image.
+Remaining (config / store, once the Steam app exists):
+- [ ] Set `STEAM_APP_ID` (env) or ship `steam_appid.txt` with the numeric App ID.
+- [ ] Define the achievements in the Steamworks dashboard with IDs matching
+      `ACHIEVEMENTS` (`ACH_FIRST_PUZZLE`, `ACH_PUZZLE_*`, `ACH_SPEED_RUN`).
+- [ ] Verify on a Steam build that completing a puzzle unlocks the achievement.
 
 ## Polish / nice-to-have 🟢
 
-- [ ] Replace any remaining `console.log` (e.g. dev achievement logs) with a
-      proper logger or strip in production builds.
+- [x] Removed dev `console.log` from the achievements path.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf).
 - [ ] Accessibility pass: keyboard nav, focus states, reduced-motion for confetti.
 - [ ] Loading/progress indicator while generating very large puzzles.

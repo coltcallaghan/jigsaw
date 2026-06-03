@@ -1,6 +1,11 @@
-// Steam achievements stub.
-// When steamworks.js is configured with a real Steam App ID, replace these
-// with actual Steamworks calls via the greenworks/steamworks.js API.
+// Steam achievements.
+// The Electron main process owns the steamworks.js client (see electron/steam.ts)
+// and exposes `window.steamAPI.activateAchievement` via the preload bridge. On
+// web/mobile (or when Steam isn't running / no App ID) this degrades to a no-op.
+
+interface SteamBridge {
+  activateAchievement: (name: string) => Promise<boolean>
+}
 
 export const ACHIEVEMENTS = {
   FIRST_PUZZLE: 'ACH_FIRST_PUZZLE',
@@ -17,23 +22,17 @@ export const ACHIEVEMENTS = {
 
 type AchievementKey = keyof typeof ACHIEVEMENTS
 
-function isSteamAvailable(): boolean {
-  return typeof (window as any).steamAPI !== 'undefined'
+function getSteamBridge(): SteamBridge | null {
+  const bridge = (window as unknown as { steamAPI?: SteamBridge }).steamAPI
+  return bridge ?? null
 }
 
 export function unlockAchievement(key: AchievementKey): void {
   const id = ACHIEVEMENTS[key]
-  if (isSteamAvailable()) {
-    try {
-      ;(window as any).steamAPI.activateAchievement(id, () => {
-        console.log(`Achievement unlocked: ${id}`)
-      })
-    } catch {
-      // Steam not initialised in dev mode
-    }
-  } else {
-    console.log(`[Dev] Achievement unlocked: ${id}`)
-  }
+  const bridge = getSteamBridge()
+  if (!bridge) return // Not running under Steam — no-op.
+  // Fire-and-forget; failures (Steam offline, etc.) are intentionally ignored.
+  void bridge.activateAchievement(id).catch(() => {})
 }
 
 export function getAchievementForPieceCount(count: number): AchievementKey | null {

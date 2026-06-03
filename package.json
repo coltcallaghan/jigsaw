@@ -41,7 +41,8 @@
     "@revenuecat/purchases-capacitor": "^13.1.4",
     "pixi.js": "^8.0.0",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "steamworks.js": "^0.4.0"
   },
   "build": {
     "appId": "com.coltcallaghan.jigsaw",
@@ -49,6 +50,9 @@
     "directories": {
       "output": "release"
     },
+    "asarUnpack": [
+      "**/node_modules/steamworks.js/**"
+    ],
     "win": {
       "target": "nsis",
       "icon": "resources/icon.ico"

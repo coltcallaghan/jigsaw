@@ -1,6 +1,7 @@
 import Electron from 'electron'
 import { join } from 'path'
 import { readFile } from 'fs/promises'
+import { initSteam, activateAchievement } from './steam'
 
 const { app, BrowserWindow, ipcMain, dialog } = Electron
 
@@ -50,9 +51,15 @@ function registerIpc(): void {
     const mime = mimeMap[ext] ?? 'image/png'
     return `data:${mime};base64,${data.toString('base64')}`
   })
+
+  ipcMain.handle('steam-achievement', (_event, name: string) => {
+    if (typeof name !== 'string') return false
+    return activateAchievement(name)
+  })
 }
 
 app.whenReady().then(() => {
+  initSteam()
   registerIpc()
   createWindow()
   app.on('activate', () => {
