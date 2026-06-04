@@ -81,9 +81,18 @@ Remaining (config / store, once the Steam app exists):
 - [x] `prefers-reduced-motion`: hides confetti + stops the loading spinner.
 - [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
-      — manual QA on device/desktop.
+      — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
       order audit (beyond the labels above).
+
+## Recently fixed
+
+- [x] **Load Saved was empty / disabled** — saves embedded the full-res image and
+      blew past localStorage's ~5MB quota, so `writeSave` silently failed. Moved
+      the save store to on-device **IndexedDB** (full-res kept, larger quota) with
+      a one-time migration from the old localStorage layout. (2026-06-04)
+- [x] Saved puzzles previously stored a truncated data URL as their name — now
+      store the real puzzle name (with backfill for old saves).
 
 ---
 
