@@ -93,6 +93,15 @@ Remaining (config / store, once the Steam app exists):
 - [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
+- [ ] 🔴 **Bundle fonts for offline.** `index.html` loads all UI fonts from the
+      Google Fonts CDN (`fonts.googleapis.com`). The app must work fully offline
+      (Steam/desktop/mobile) — without a network the packaged app falls back to
+      system fonts, losing the themed typography. Self-host the font files in
+      `public/` (or via an npm font package) and drop the CDN `<link>`s.
+- [x] App metadata: `productName` = "Jigsaw: Your photos, your puzzle",
+      `author` = "Colt Callaghan" set in package.json (clears the
+      electron-builder "author is missed" warning). Verified an unsigned arm64
+      `.dmg` builds with the new name (2026-06-04).
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
       order audit (beyond the labels above).
 - [ ] **Bump GitHub Actions off Node 20 before Sep 2026** (cosmetic; nothing

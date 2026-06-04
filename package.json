@@ -1,7 +1,8 @@
 {
   "name": "jigsaw",
   "version": "1.0.0",
-  "description": "A jigsaw puzzle game for Steam",
+  "description": "Jigsaw: Your photos, your puzzle — turn any photo into a jigsaw puzzle.",
+  "author": "Colt Callaghan",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -50,7 +51,7 @@
   },
   "build": {
     "appId": "com.coltcallaghan.jigsaw",
-    "productName": "Jigsaw",
+    "productName": "Jigsaw: Your photos, your puzzle",
     "directories": {
       "output": "release"
     },
