@@ -98,10 +98,22 @@ Remaining (config / store, once the Steam app exists):
       Google Fonts CDN `<link>`s are removed from `index.html`. Verified: the
       production build emits the woff2 files and renders correctly with the CDN
       blocked (no network font fetch). (2026-06-04)
-- [x] App metadata: `productName` = "Jigsaw: Your photos, your puzzle",
-      `author` = "Colt Callaghan" set in package.json (clears the
-      electron-builder "author is missed" warning). Verified an unsigned arm64
-      `.dmg` builds with the new name (2026-06-04).
+- [x] App metadata + working macOS build (2026-06-04). `author` = "Colt
+      Callaghan"; bundle `productName` = "Jigsaw" with display name
+      `CFBundleDisplayName` = "Jigsaw: Your photos, your puzzle". A colon/commas
+      in productName broke Electron's helper-app lookup ("Unable to find helper
+      app") — keep the bundle name plain, put the pretty name in the display
+      field. Upgraded Electron 28 → 42 (+ electron-builder 26, electron-vite 5)
+      for macOS 26 / Apple-silicon support. Verified the packaged arm64 `.dmg`
+      launches and runs (ad-hoc signed).
+  - **Local mac build recipe** (unsigned, until Apple certs exist): build to a
+    path OUTSIDE iCloud (`~/Documents` is file-provider managed and re-stamps
+    `com.apple.FinderInfo`, which `codesign` rejects), with hardened runtime off:
+    `CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac \
+    -c.mac.hardenedRuntime=false -c.directories.output=/tmp/jigsaw-release`.
+    An `afterPack` hook (`scripts/afterPack.cjs`) strips xattrs before signing.
+  - Unsigned builds prompt for keychain ("jigsaw Safe Storage", Chromium cookie
+    encryption) on launch — expected; a real Developer ID signature removes it.
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
       order audit (beyond the labels above).
 - [ ] **Bump GitHub Actions off Node 20 before Sep 2026** (cosmetic; nothing

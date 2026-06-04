@@ -27,9 +27,9 @@
     "@types/react-dom": "^18.0.0",
     "@vitejs/plugin-react": "^4.0.0",
     "autoprefixer": "^10.4.0",
-    "electron": "^28.3.3",
-    "electron-builder": "^24.0.0",
-    "electron-vite": "^2.0.0",
+    "electron": "^42.3.3",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
     "fake-indexeddb": "^6.2.5",
     "playwright": "^1.60.0",
     "postcss": "^8.4.0",
@@ -57,7 +57,8 @@
   },
   "build": {
     "appId": "com.coltcallaghan.jigsaw",
-    "productName": "Jigsaw: Your photos, your puzzle",
+    "productName": "Jigsaw",
+    "afterPack": "scripts/afterPack.cjs",
     "directories": {
       "output": "release"
     },
@@ -79,7 +80,14 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSHumanReadableCopyright": "© Colt Callaghan",
+        "CFBundleDisplayName": "Jigsaw: Your photos, your puzzle"
+      }
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     }
   }
 }
