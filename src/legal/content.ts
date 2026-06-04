@@ -12,7 +12,7 @@
 
 export const POLICY_VERSION = 1
 export const EFFECTIVE_DATE = '2026-06-03'
-export const CONTACT_EMAIL = 'colt.callaghan@hasc.org.uk'
+export const CONTACT_EMAIL = 'callaghan.colt@gmail.com'
 
 /** Lightweight blocks rendered by LegalDoc (no Markdown engine needed). */
 export interface LegalBlock {
