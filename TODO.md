@@ -8,27 +8,24 @@ Legend: 🔴 blocks a good first release · 🟡 should-have · 🟢 nice-to-hav
 
 ---
 
-## Audio 🔴
+## Audio 🟢 (DONE — all 14 files committed; optional polish remains)
 
 The audio **engine is fully wired** ([`src/audio/`](./src/audio/), see
-[`AUDIO_NOTES.md`](./AUDIO_NOTES.md)) but **no sound files are committed** —
-`public/audio/{sfx,music}/` contain only `.gitkeep`, so the game currently ships
-silent. Missing files are skipped gracefully, so this is content-only work
-(licensed binaries must be sourced by hand — can't be code-generated).
+[`AUDIO_NOTES.md`](./AUDIO_NOTES.md)) and **all expected files are committed** —
+`npm run check:audio` reports **14/14 present** (6 SFX, 4 per-theme UI clicks,
+4 per-theme music loops), all `.wav`. The game ships with sound.
 
-Run **`npm run check:audio`** to see which of the 10 expected files are present.
-
-- [ ] Add 6 SFX files to `public/audio/sfx/` (exact names in
-      [`public/audio/README.md`](./public/audio/README.md)):
-      `piece_snap`, `piece_group`, `piece_pickup`, `puzzle_complete`,
-      `tray_add`, `tray_retrieve` (`.mp3`).
-- [ ] Add 4 looping music tracks to `public/audio/music/`:
-      `cartoon`, `modern`, `dark`, `arcade` (`.mp3`).
-- [ ] Source CC0 / Pixabay (no-attribution) assets only — links + per-theme
-      search terms are in `public/audio/README.md`.
-- [ ] Keep sizes small (music < 1–2 MB, SFX < 50 KB) — they ship in the bundle.
-- [ ] Verify volume sliders + SFX/music toggles in Settings → Audio behave once
-      real files are present.
+- [x] 6 SFX in `public/audio/sfx/` (`piece_snap`, `piece_group`, `piece_pickup`,
+      `puzzle_complete`, `tray_add`, `tray_retrieve`).
+- [x] 4 per-theme UI click SFX (`ui_click_{cartoon,modern,dark,arcade}`).
+- [x] 4 per-theme looping music tracks (`{cartoon,modern,dark,arcade}`).
+- [ ] **Optional:** music loops are uncompressed `.wav` (~1 MB each, ~4 MB total
+      in the bundle). Re-encoding to `.mp3`/`.ogg` would shrink the bundle a lot;
+      requires updating the paths in [`src/audio/sounds.ts`](./src/audio/sounds.ts).
+- [ ] **Optional:** manual QA of volume sliders + SFX/music toggles in
+      Settings → Audio on a real device.
+- [ ] **Optional:** confirm the generated audio is the final creative choice (it
+      was machine-generated copyright-free; swap for sourced CC0 if preferred).
 
 ## Legal / consent 🔴 (code DONE — needs review + hosted URL)
 
@@ -108,6 +105,14 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **All audio committed** — 14/14 files present (`npm run check:audio`); the
+      game no longer ships silent. (2026-06-04)
+- [x] **Theme-aware, zoom-adaptive piece outlines** — outlines now restyle per
+      theme live (`PuzzleEngine.setTheme`), stay a constant on-screen thickness
+      when zoomed, and are capped so they never swamp tiny pieces on 5k/10k
+      puzzles. (2026-06-04)
+- [x] **In-game settings modal** — settings (incl. live theme switch) reachable
+      mid-puzzle via the HUD gear. (2026-06-04)
 - [x] **Completion now lands correctly** — the finished puzzle is written before
       the menu refreshes (was a race, so it didn't appear in Completed), and the
       active puzzle is marked finished so "Continue" no longer reopens it on an
