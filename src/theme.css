@@ -136,7 +136,18 @@ h1, h2, h3 {
 .app[data-theme="cartoon"] .btn-ghost { background: var(--surface); border-color: var(--ink); }
 .btn-lg { padding: 17px 30px; font-size: 1.15rem; }
 .app[data-theme="arcade"] .btn-lg { font-size: .9rem; }
-.btn-icon { padding: 0; width: 42px; height: 42px; border-radius: var(--radius-sm); }
+.btn-icon {
+  padding: 0; width: 42px; height: 42px; flex: 0 0 42px;
+  border-radius: var(--radius-sm);
+  display: inline-grid; place-items: center;
+}
+/* Keep the icon button a fixed square — themes that fatten .btn padding
+   (e.g. arcade) must not stretch it, or it overflows the HUD and clips. */
+.app[data-theme="arcade"] .btn-icon { padding: 0; width: 42px; height: 42px; }
+/* Give the ghost icon button visible chrome so it reads as a control in every
+   theme (btn-ghost is otherwise borderless outside cartoon). */
+.btn-ghost.btn-icon { background: var(--surface-2); border-color: var(--ink); }
+.app[data-theme="arcade"] .btn-ghost.btn-icon { box-shadow: 0 0 0 2px var(--ink); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 8px 14px; font-size: .85rem; }
 

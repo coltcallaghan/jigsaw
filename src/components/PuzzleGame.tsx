@@ -317,12 +317,16 @@ export default function PuzzleGame({
         </button>
 
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-icon"
           title="Settings"
           aria-label="Settings"
           onClick={() => setShowSettings(true)}
         >
-          ⚙
+          <svg viewBox="0 0 24 24" width={22} height={22} fill="none"
+            stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M19.4 12a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7.3 7.3 0 0 0-1.7-1l-.4-2.5H10l-.4 2.5a7.3 7.3 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.3 7.3 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.3 7.3 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.06-.33.1-.66.1-1z" />
+          </svg>
         </button>
       </div>
 
