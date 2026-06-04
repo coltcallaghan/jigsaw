@@ -87,6 +87,24 @@ Remaining (config / store, once the Steam app exists):
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
       order audit (beyond the labels above).
+- [ ] **Theme-styled puzzle images** (parked 2026-06-04). Idea: restyle the
+      photo per theme so it matches the theme's look (e.g. cartoon = "Mario"
+      illustration, arcade = neon). Findings from a spike:
+  - **Arcade is easy + effective:** a live PixiJS `ColorMatrixFilter`
+    (saturation + contrast + slight brightness) on `piecesLayer` + the ghost
+    sprite. ~15 lines, no deps, fully offline, toggles instantly on theme
+    switch. Worth doing standalone whenever wanted.
+  - **Cartoon is the hard one:** pure-canvas filters (posterize + edge-ink +
+    edge-preserving box blur) only ever produce a *stylized photo*, never
+    hand-drawn game art — tuning ranged from too-subtle → radioactive →
+    painterly-but-still-a-photo. A genuine "Mario" look needs a trained
+    style-transfer model (e.g. TF.js, bundleable for offline but multi-MB +
+    ~1–3s/image). Decide if that weight/latency is worth it before retrying.
+  - Constraint: must stay **offline** (Capacitor/Steam) — rules out any
+    image-to-image API.
+  - Mid-game theme switches already work for outlines/felt/borders
+    (`PuzzleEngine.setTheme`, committed). Baked image restyle would re-slice
+    all piece textures on switch (cost scales with piece count).
 
 ## Recently fixed
 
