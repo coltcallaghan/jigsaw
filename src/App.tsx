@@ -23,6 +23,8 @@ export default function App() {
   // Stable id for the active puzzle, owned here so it survives PuzzleGame
   // remounts (a new game mints one; loading a save reuses the save's id).
   const [puzzleId, setPuzzleId] = useState<string | null>(null)
+  // True once the active puzzle has been completed, so Continue won't reopen it.
+  const [puzzleFinished, setPuzzleFinished] = useState(false)
   const [activeSave, setActiveSave] = useState<SaveData | null>(null)
   const [saves, setSaves] = useState<SaveMeta[]>([])
   const [completed, setCompleted] = useState<CompletedPuzzle[]>([])
@@ -82,6 +84,7 @@ export default function App() {
     img.src = imageDataUrl
     img.onload = () => {
       setActiveSave(null)
+      setPuzzleFinished(false)
       setPuzzleId(Date.now().toString())
       setPuzzleConfig({
         imageDataUrl,
@@ -104,6 +107,7 @@ export default function App() {
     const save = await getSave(id)
     if (!save) return
     setActiveSave(save)
+    setPuzzleFinished(false)
     setPuzzleId(save.id)
     // Backfill name for saves created before puzzles were named.
     setPuzzleConfig({ ...save.config, name: save.config.name ?? save.imageName })
@@ -117,15 +121,26 @@ export default function App() {
   }
 
   const handlePuzzleComplete = (completedId: string) => {
-    // PuzzleGame already wrote it to the completed store; drop the in-progress
-    // save and refresh both menu lists.
+    // PuzzleGame has already written the completed record by this point; drop
+    // the in-progress save and refresh both menu lists.
     void deleteSave(completedId).then(() => listSaves().then(setSaves))
     void listCompleted().then(setCompleted)
     refreshStorageStatus()
+    // Mark the active puzzle finished so "Continue" won't reopen it with a fresh
+    // (empty) board. We keep puzzleConfig set so the win overlay stays visible.
     setActiveSave(null)
+    setPuzzleFinished(true)
   }
 
-  const handleBackToMenu = () => setScreen('menu')
+  const handleBackToMenu = () => {
+    // Leaving a finished puzzle: forget it so Continue has nothing stale to open.
+    if (puzzleFinished) {
+      setPuzzleConfig(null)
+      setPuzzleId(null)
+      setPuzzleFinished(false)
+    }
+    setScreen('menu')
+  }
 
   const appStyle: React.CSSProperties = {
     filter: settings.brightness !== 100 ? `brightness(${settings.brightness / 100})` : undefined,
@@ -146,7 +161,7 @@ export default function App() {
           onContinue={handleContinue}
           onLoadSave={handleLoadSave}
           onSettings={() => setScreen('settings')}
-          canContinue={!!activeSave || !!puzzleConfig}
+          canContinue={!puzzleFinished && (!!activeSave || !!puzzleConfig)}
           saves={saves}
           onSavesChange={(s) => { setSaves(s); refreshStorageStatus() }}
           completed={completed}

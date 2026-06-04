@@ -90,6 +90,10 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **Completion now lands correctly** — the finished puzzle is written before
+      the menu refreshes (was a race, so it didn't appear in Completed), and the
+      active puzzle is marked finished so "Continue" no longer reopens it on an
+      empty board.
 - [x] **No save limit** — removed the old 5-save cap on in-progress puzzles;
       both in-progress and completed are now bounded only by device storage. A
       "storage almost full" banner appears (via the Storage API) when usage is

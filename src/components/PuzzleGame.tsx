@@ -122,9 +122,12 @@ export default function PuzzleGame({
     if (timerRef.current) clearInterval(timerRef.current)
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     const finalElapsed = currentElapsed()
-    // Keep the finished puzzle so players can look back at it.
-    void makeThumbnail(config.imageDataUrl, 240, 160).then(thumb => {
-      void writeCompleted({
+
+    // Persist the finished puzzle, THEN notify the parent — so the completed
+    // record exists before the menu refreshes its list / drops the save.
+    void (async () => {
+      const thumb = await makeThumbnail(config.imageDataUrl, 240, 160)
+      await writeCompleted({
         id: saveIdRef.current,
         imageName: config.name,
         pieceCount: total,
@@ -133,9 +136,9 @@ export default function PuzzleGame({
         elapsed: finalElapsed,
         completedAt: Date.now(),
       })
-    })
-    // Let the parent drop the in-progress save and refresh the menu lists.
-    onCompleteRef.current(saveIdRef.current)
+      onCompleteRef.current(saveIdRef.current)
+    })()
+
     const ach = getAchievementForPieceCount(config.pieceCount)
     if (ach) unlockAchievement(ach)
     unlockAchievement('FIRST_PUZZLE')
