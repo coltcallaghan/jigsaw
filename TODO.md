@@ -36,8 +36,16 @@ later via Settings → About. Declining shows a non-blocking "review required"
 state with a way back to Accept — no doom loop.
 
 - [ ] Review the draft wording in `src/legal/content.ts` (not legal advice).
-- [ ] Host the same text at a public URL for the store listings.
-- [ ] Bump `POLICY_VERSION` on material changes to re-prompt existing users.
+- [x] **Hostable public URL prepared** — `scripts/gen-legal-html.mjs` generates
+      `privacy.html` + `terms.html` from the SAME `src/legal/content.ts` (single
+      source of truth; runs automatically in `npm run build:web`, also
+      `npm run gen:legal`). Output lands in `dist-web/`.
+- [ ] **Enable GitHub Pages** to serve the web build (Settings → Pages). Until
+      the app stores are live the plan is to host the game itself there too. URLs
+      will be `https://coltcallaghan.github.io/jigsaw/privacy.html` and
+      `…/terms.html` — paste those into the App Store / Play / Steam listings.
+- [ ] Bump `POLICY_VERSION` on material changes to re-prompt existing users
+      (regenerates the hosted pages on next `build:web` automatically).
 
 ## In-app purchase / size lockdown 🔴 (code DONE — needs store config)
 

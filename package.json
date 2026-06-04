@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:browser": "vite",
-    "build:web": "vite build -c vite.web.config.ts",
+    "build:web": "node scripts/gen-legal-html.mjs && vite build -c vite.web.config.ts",
+    "gen:legal": "node scripts/gen-legal-html.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-builder",

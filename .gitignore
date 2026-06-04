@@ -12,3 +12,7 @@ release/
 # Capacitor native projects (regenerated via `npx cap add`)
 ios/
 android/
+
+# Generated legal pages (built from src/legal/content.ts by scripts/gen-legal-html.mjs)
+public/privacy.html
+public/terms.html
