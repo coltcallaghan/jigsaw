@@ -106,12 +106,12 @@ Remaining (config / store, once the Steam app exists):
       field. Upgraded Electron 28 → 42 (+ electron-builder 26, electron-vite 5)
       for macOS 26 / Apple-silicon support. Verified the packaged arm64 `.dmg`
       launches and runs (ad-hoc signed).
-  - **Local mac build recipe** (unsigned, until Apple certs exist): build to a
-    path OUTSIDE iCloud (`~/Documents` is file-provider managed and re-stamps
-    `com.apple.FinderInfo`, which `codesign` rejects), with hardened runtime off:
-    `CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac \
-    -c.mac.hardenedRuntime=false -c.directories.output=/tmp/jigsaw-release`.
-    An `afterPack` hook (`scripts/afterPack.cjs`) strips xattrs before signing.
+  - **Local mac build:** `npm run package:mac:local` — builds + packages an
+    unsigned DMG to `~/Docs/jigsaw/release` (a NON-iCloud folder; `~/Documents`
+    is file-provider managed and re-stamps `com.apple.FinderInfo`, which
+    `codesign` rejects). Hardened runtime is off for unsigned. An `afterPack`
+    hook (`scripts/afterPack.cjs`) strips xattrs before signing. The default
+    `npm run package:mac` (output `release/`) is for CI / signed release builds.
   - Unsigned builds prompt for keychain ("jigsaw Safe Storage", Chromium cookie
     encryption) on launch — expected; a real Developer ID signature removes it.
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus

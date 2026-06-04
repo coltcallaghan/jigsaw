@@ -15,6 +15,7 @@
     "package": "electron-builder",
     "package:win": "electron-builder --win",
     "package:mac": "electron-builder --mac",
+    "package:mac:local": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac -c.mac.hardenedRuntime=false -c.directories.output=$HOME/Docs/jigsaw/release",
     "package:linux": "electron-builder --linux",
     "sync:mobile": "npm run build:web && npx cap sync",
     "open:ios": "npx cap open ios",
