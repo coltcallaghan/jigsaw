@@ -92,6 +92,13 @@ Remaining (config / store, once the Steam app exists):
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
 - [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
       order audit (beyond the labels above).
+- [ ] **Bump GitHub Actions off Node 20 before Sep 2026** (cosmetic; nothing
+      breaks now). All 7 workflows in `.github/workflows/` use `actions/*@v4`
+      (checkout, setup-node, setup-java, upload-artifact, deploy-pages, etc.)
+      which run on the Node 20 runtime — GitHub deprecates it: forced to Node 24
+      on **2026-06-16**, removed **2026-09-16**. Fix by bumping to action
+      versions that support Node 24, or set
+      `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in the workflows.
 - [ ] **Theme-styled puzzle images** (parked 2026-06-04). Idea: restyle the
       photo per theme so it matches the theme's look (e.g. cartoon = "Mario"
       illustration, arcade = neon). Findings from a spike:
