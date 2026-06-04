@@ -153,6 +153,29 @@ function puzzleComplete() {
   return normalize(s, 0.85)
 }
 
+// ui_click: a soft, short blip for menu/button presses — one per theme so the
+// UI feedback matches each theme's character. Quiet and short so it's pleasant
+// on repeat. `spec` picks the two partial frequencies, decay rate and waveform.
+function uiClick({ f1, f2, k, wave, peak }) {
+  const s = buf(0.06)
+  for (let i = 0; i < s.length; i++) {
+    const t = tOf(i)
+    const e = decay(i, 0.06, k)
+    s[i] = (wave(f1, t) * 0.7 + wave(f2, t) * 0.3) * e
+  }
+  return normalize(s, peak)
+}
+
+// Per-theme click character:
+//   cartoon — bright, bouncy two-tone   modern — soft, clean high blip
+//   dark    — low, muted thunk          arcade — retro square-wave blip
+const UI_CLICKS = {
+  cartoon: { f1: 660, f2: 990, k: 12, wave: sine, peak: 0.42 },
+  modern: { f1: 880, f2: 1320, k: 16, wave: sine, peak: 0.32 },
+  dark: { f1: 320, f2: 480, k: 18, wave: sine, peak: 0.4 },
+  arcade: { f1: 740, f2: 1480, k: 13, wave: square, peak: 0.3 },
+}
+
 console.log('SFX:')
 write(SFX_DIR, 'piece_snap', pieceSnap())
 write(SFX_DIR, 'piece_group', pieceGroup())
@@ -160,6 +183,10 @@ write(SFX_DIR, 'piece_pickup', piecePickup())
 write(SFX_DIR, 'tray_add', trayAdd())
 write(SFX_DIR, 'tray_retrieve', trayRetrieve())
 write(SFX_DIR, 'puzzle_complete', puzzleComplete())
+console.log('UI clicks (per theme):')
+for (const [theme, spec] of Object.entries(UI_CLICKS)) {
+  write(SFX_DIR, `ui_click_${theme}`, uiClick(spec))
+}
 
 // ── Music (seamless looping beds, ~12s each) ─────────────────────────────────
 // Each theme is a chord progression rendered so the end meets the start cleanly.

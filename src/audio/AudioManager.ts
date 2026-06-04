@@ -1,5 +1,5 @@
 import type { Theme } from '../hooks/useSettings'
-import { SFX_SOURCES, MUSIC_SOURCES, type SfxKey } from './sounds'
+import { SFX_SOURCES, UI_CLICK_SOURCES, MUSIC_SOURCES, type SfxKey } from './sounds'
 
 /**
  * Singleton audio engine for SFX and per-theme background music.
@@ -34,6 +34,10 @@ class AudioManagerImpl {
   // Preloaded SFX templates; cloned per play so they can overlap.
   private sfxTemplates: Map<SfxKey, HTMLAudioElement> = new Map()
   private brokenSfx: Set<SfxKey> = new Set()
+
+  // Per-theme UI click templates (same clone-to-play strategy as SFX).
+  private clickTemplates: Map<Theme, HTMLAudioElement> = new Map()
+  private brokenClicks: Set<Theme> = new Set()
 
   private music: HTMLAudioElement | null = null
   private musicTheme: Theme | null = null
@@ -80,6 +84,27 @@ class AudioManagerImpl {
     const node = template.cloneNode(true) as HTMLAudioElement
     node.volume = gain
     node.play().catch(() => { this.brokenSfx.add(key) })
+  }
+
+  /**
+   * Play the UI click for a theme. Governed by the SFX volume/enabled state, so
+   * muting sound effects also silences button clicks. No-ops if missing.
+   */
+  playClick(theme: Theme): void {
+    const gain = this.sfxGain()
+    if (gain <= 0 || this.brokenClicks.has(theme)) return
+
+    let template = this.clickTemplates.get(theme)
+    if (!template) {
+      template = new Audio(resolve(UI_CLICK_SOURCES[theme]))
+      template.preload = 'auto'
+      template.addEventListener('error', () => this.brokenClicks.add(theme), { once: true })
+      this.clickTemplates.set(theme, template)
+    }
+
+    const node = template.cloneNode(true) as HTMLAudioElement
+    node.volume = gain
+    node.play().catch(() => { this.brokenClicks.add(theme) })
   }
 
   // ─── Music ─────────────────────────────────────────────────────────────

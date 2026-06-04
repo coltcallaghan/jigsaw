@@ -8,6 +8,7 @@ import type { SaveData, PieceState } from '../utils/saveGame'
 import { writeSave, writeCompleted, makeThumbnail } from '../utils/saveGame'
 import PieceTray from './PieceTray'
 import ZoomPanControls from './ZoomPanControls'
+import SettingsModal from './SettingsModal'
 import { getAchievementForPieceCount, unlockAchievement, unlockPieceMilestones } from '../steam/achievements'
 import { addLifetimePieces } from '../utils/stats'
 import { AudioManager } from '../audio/AudioManager'
@@ -20,6 +21,7 @@ interface PuzzleGameProps {
   savedElapsed: number
   settings: GameSettings
   onSettingsChange: (patch: Partial<GameSettings>) => void
+  onSettingsReset: () => void
   onBackToMenu: () => void
   onSave: (save: SaveData) => void
   /** Fired once the puzzle is finished (id of the now-completed puzzle). */
@@ -29,7 +31,7 @@ interface PuzzleGameProps {
 }
 
 export default function PuzzleGame({
-  config, saveId, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete, onNewPuzzle,
+  config, saveId, savedState, savedElapsed, settings, onSettingsChange, onSettingsReset, onBackToMenu, onSave, onComplete, onNewPuzzle,
 }: PuzzleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
@@ -48,6 +50,7 @@ export default function PuzzleGame({
   const [showTray, setShowTray] = useState(true)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
   const [showGhostSlider, setShowGhostSlider] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [elapsed, setElapsed] = useState(savedElapsed)
   const [isLoading, setIsLoading] = useState(true)
   const startTimeRef = useRef<number>(0)
@@ -312,6 +315,15 @@ export default function PuzzleGame({
         >
           Save
         </button>
+
+        <button
+          className="btn btn-ghost btn-sm"
+          title="Settings"
+          aria-label="Settings"
+          onClick={() => setShowSettings(true)}
+        >
+          ⚙
+        </button>
       </div>
 
       {/* Game body */}
@@ -372,6 +384,16 @@ export default function PuzzleGame({
           </div>
         )}
       </div>
+
+      {/* In-game settings modal */}
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onChange={onSettingsChange}
+          onReset={onSettingsReset}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {/* Win overlay */}
       {isComplete && (

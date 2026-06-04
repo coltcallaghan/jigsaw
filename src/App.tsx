@@ -63,14 +63,31 @@ export default function App() {
     })
   }, [settings.masterVolume, settings.musicVolume, settings.sfxVolume, settings.sfxEnabled, settings.musicEnabled])
 
-  // Background music follows the active theme while in a game; stop elsewhere.
+  // Play a themed UI click on any button press (delegated at the root so every
+  // button gets it without per-button wiring). Capture phase so it fires even if
+  // a handler stops propagation. AudioManager gates this on SFX volume/enabled.
   useEffect(() => {
-    if (screen === 'game' && settings.musicEnabled) {
+    if (!consented) return
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('button, .btn, [role="button"]')) {
+        AudioManager.playClick(settings.theme)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [consented, settings.theme])
+
+  // Background music follows the active theme across all screens once the user
+  // has accepted consent (the first user gesture, which browsers require before
+  // audio can start). Stops only when music is disabled or consent is pending.
+  useEffect(() => {
+    if (consented && settings.musicEnabled) {
       AudioManager.playMusic(settings.theme)
     } else {
       AudioManager.stopMusic()
     }
-  }, [screen, settings.theme, settings.musicEnabled])
+  }, [consented, settings.theme, settings.musicEnabled])
 
   const handleImageSelected = (dataUrl: string) => {
     setImageDataUrl(dataUrl)
@@ -200,6 +217,7 @@ export default function App() {
           savedElapsed={activeSave?.elapsed ?? 0}
           settings={settings}
           onSettingsChange={setSettings}
+          onSettingsReset={resetSettings}
           onBackToMenu={handleBackToMenu}
           onSave={handleSaveGame}
           onComplete={handlePuzzleComplete}

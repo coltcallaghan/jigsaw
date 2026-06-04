@@ -30,6 +30,17 @@ export const SFX_SOURCES: Record<SfxKey, string> = {
   tray_retrieve: 'audio/sfx/tray_retrieve.wav',
 }
 
+/**
+ * UI button-press click — one variant per theme so the feedback matches each
+ * theme's character (played via AudioManager.playClick(theme)).
+ */
+export const UI_CLICK_SOURCES: Record<Theme, string> = {
+  cartoon: 'audio/sfx/ui_click_cartoon.wav', // bright two-tone
+  modern: 'audio/sfx/ui_click_modern.wav',   // soft clean blip
+  dark: 'audio/sfx/ui_click_dark.wav',       // low muted thunk
+  arcade: 'audio/sfx/ui_click_arcade.wav',   // retro square blip
+}
+
 /** One looping background track per theme, to match each theme's mood. */
 export const MUSIC_SOURCES: Record<Theme, string> = {
   cartoon: 'audio/music/cartoon.wav', // playful / bouncy

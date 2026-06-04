@@ -12,14 +12,18 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PUBLIC = join(root, 'public')
 
 // Keep in sync with src/audio/sounds.ts.
+const THEMES = ['cartoon', 'modern', 'dark', 'arcade']
+
 const SFX = [
   'piece_snap', 'piece_group', 'piece_pickup',
   'puzzle_complete', 'tray_add', 'tray_retrieve',
 ].map(k => `audio/sfx/${k}.wav`)
 
-const MUSIC = ['cartoon', 'modern', 'dark', 'arcade'].map(t => `audio/music/${t}.wav`)
+const UI_CLICKS = THEMES.map(t => `audio/sfx/ui_click_${t}.wav`)
 
-const expected = [...SFX, ...MUSIC]
+const MUSIC = THEMES.map(t => `audio/music/${t}.wav`)
+
+const expected = [...SFX, ...UI_CLICKS, ...MUSIC]
 const missing = expected.filter(rel => !existsSync(join(PUBLIC, rel)))
 const present = expected.length - missing.length
 
