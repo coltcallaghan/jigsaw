@@ -25,6 +25,17 @@ export interface SaveData extends SaveMeta {
   pieces: PieceState[]
 }
 
+/** A finished puzzle, kept so players can look back at completed work. */
+export interface CompletedPuzzle {
+  id: string
+  imageName: string
+  pieceCount: number
+  imageDataUrl: string   // full finished image
+  thumbnailUrl: string   // tiny preview for the list
+  elapsed: number        // seconds taken
+  completedAt: number
+}
+
 const MAX_SAVES = 5
 
 // ─── IndexedDB plumbing ──────────────────────────────────────────────────────
@@ -35,8 +46,9 @@ const MAX_SAVES = 5
 // larger quota, so full-res images persist reliably.
 
 const DB_NAME = 'jigsaw'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE = 'saves'
+const COMPLETED_STORE = 'completed'
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -49,6 +61,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id' })
       }
+      if (!db.objectStoreNames.contains(COMPLETED_STORE)) {
+        db.createObjectStore(COMPLETED_STORE, { keyPath: 'id' })
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -56,12 +71,16 @@ function openDB(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function tx<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  fn: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
   return openDB().then(
     db =>
       new Promise<T>((resolve, reject) => {
-        const transaction = db.transaction(STORE, mode)
-        const req = fn(transaction.objectStore(STORE))
+        const transaction = db.transaction(storeName, mode)
+        const req = fn(transaction.objectStore(storeName))
         req.onsuccess = () => resolve(req.result)
         req.onerror = () => reject(req.error)
       })
@@ -85,7 +104,7 @@ function toMeta(data: SaveData): SaveMeta {
 export async function listSaves(): Promise<SaveMeta[]> {
   try {
     await migrateFromLocalStorage()
-    const all = await tx<SaveData[]>('readonly', store => store.getAll() as IDBRequest<SaveData[]>)
+    const all = await tx<SaveData[]>(STORE, 'readonly', store => store.getAll() as IDBRequest<SaveData[]>)
     return all
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .map(toMeta)
@@ -96,7 +115,7 @@ export async function listSaves(): Promise<SaveMeta[]> {
 
 export async function getSave(id: string): Promise<SaveData | null> {
   try {
-    const data = await tx<SaveData | undefined>('readonly', store => store.get(id) as IDBRequest<SaveData | undefined>)
+    const data = await tx<SaveData | undefined>(STORE, 'readonly', store => store.get(id) as IDBRequest<SaveData | undefined>)
     return data ?? null
   } catch {
     return null
@@ -106,7 +125,7 @@ export async function getSave(id: string): Promise<SaveData | null> {
 /** Persist a save, trimming to the most recent MAX_SAVES. Returns success. */
 export async function writeSave(data: SaveData): Promise<boolean> {
   try {
-    await tx('readwrite', store => store.put(data))
+    await tx(STORE, 'readwrite', store => store.put(data))
     await trimSaves()
     return true
   } catch {
@@ -116,7 +135,7 @@ export async function writeSave(data: SaveData): Promise<boolean> {
 
 export async function deleteSave(id: string): Promise<void> {
   try {
-    await tx('readwrite', store => store.delete(id))
+    await tx(STORE, 'readwrite', store => store.delete(id))
   } catch {
     // best-effort
   }
@@ -129,7 +148,7 @@ export async function renameSave(id: string, name: string): Promise<SaveMeta[]> 
   try {
     const save = await getSave(id)
     if (save) {
-      await tx('readwrite', store => store.put({ ...save, imageName: trimmed }))
+      await tx(STORE, 'readwrite', store => store.put({ ...save, imageName: trimmed }))
     }
   } catch {
     // best-effort
@@ -138,11 +157,40 @@ export async function renameSave(id: string, name: string): Promise<SaveMeta[]> 
 }
 
 async function trimSaves(): Promise<void> {
-  const all = await tx<SaveData[]>('readonly', store => store.getAll() as IDBRequest<SaveData[]>)
+  const all = await tx<SaveData[]>(STORE, 'readonly', store => store.getAll() as IDBRequest<SaveData[]>)
   if (all.length <= MAX_SAVES) return
   const stale = all.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_SAVES)
   for (const save of stale) {
-    await tx('readwrite', store => store.delete(save.id))
+    await tx(STORE, 'readwrite', store => store.delete(save.id))
+  }
+}
+
+// ─── Completed puzzles (kept indefinitely, not trimmed) ──────────────────────
+
+/** List completed puzzles, newest first. */
+export async function listCompleted(): Promise<CompletedPuzzle[]> {
+  try {
+    const all = await tx<CompletedPuzzle[]>(COMPLETED_STORE, 'readonly', store => store.getAll() as IDBRequest<CompletedPuzzle[]>)
+    return all.sort((a, b) => b.completedAt - a.completedAt)
+  } catch {
+    return []
+  }
+}
+
+export async function writeCompleted(data: CompletedPuzzle): Promise<boolean> {
+  try {
+    await tx(COMPLETED_STORE, 'readwrite', store => store.put(data))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function deleteCompleted(id: string): Promise<void> {
+  try {
+    await tx(COMPLETED_STORE, 'readwrite', store => store.delete(id))
+  } catch {
+    // best-effort
   }
 }
 
@@ -164,7 +212,7 @@ async function migrateFromLocalStorage(): Promise<void> {
       if (!saveRaw) continue
       try {
         const save: SaveData = JSON.parse(saveRaw)
-        await tx('readwrite', store => store.put(save))
+        await tx(STORE, 'readwrite', store => store.put(save))
       } catch {
         // skip a corrupt legacy entry
       }

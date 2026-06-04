@@ -11,7 +11,9 @@ with React + PixiJS.
   piece styling, and background music.
 - Drag, snap, group, and a piece tray for stashing pieces.
 - Touch + mouse support; zoom/pan controls.
-- Save / resume puzzles.
+- Save / resume puzzles (autosaves as you place pieces); finished puzzles are
+  kept in a "Completed" gallery to look back on.
+- Steam achievements for puzzle completions and lifetime pieces placed.
 - Theme-aware audio engine (SFX + per-theme music).
 - Mobile freemium gate: sizes up to 100 pieces are free; larger sizes unlock via a
   one-time in-app purchase (RevenueCat). Web and desktop are fully unlocked.
@@ -47,7 +49,7 @@ src/
 ├── components/   React screens (MainMenu, SetupScreen, PuzzleGame, …)
 ├── config/       platform detection, unlock gate, RevenueCat purchases
 ├── puzzle/       PixiJS puzzle engine + types
-├── steam/        Steam achievements (stub — see TODO.md)
+├── steam/        Steam achievements (wired; needs App ID — see TODO.md)
 ├── hooks/        useSettings, etc.
 └── utils/        save/load, canvas helpers
 electron/         Electron main + preload

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
-import type { SaveMeta } from '../utils/saveGame'
-import { deleteSave, renameSave } from '../utils/saveGame'
+import type { SaveMeta, CompletedPuzzle } from '../utils/saveGame'
+import { deleteSave, renameSave, deleteCompleted, listCompleted } from '../utils/saveGame'
 
 interface MainMenuProps {
   onNewGame: (dataUrl: string) => void
@@ -10,9 +10,11 @@ interface MainMenuProps {
   canContinue: boolean
   saves: SaveMeta[]
   onSavesChange: (saves: SaveMeta[]) => void
+  completed: CompletedPuzzle[]
+  onCompletedChange: (completed: CompletedPuzzle[]) => void
 }
 
-type View = 'main' | 'load'
+type View = 'main' | 'load' | 'completed'
 
 const PIECE_COLORS = ['#FF7A4D', '#36C5C0', '#8C6BFF', '#FFC23C']
 const PIECE_ROTS   = ['-8deg', '5deg', '-4deg', '9deg']
@@ -37,6 +39,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
     gear: <><circle cx="12" cy="12" r="3.2" /><path d="M19.4 12a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7.3 7.3 0 0 0-1.7-1l-.4-2.5H10l-.4 2.5a7.3 7.3 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.3 7.3 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.3 7.3 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.06-.33.1-.66.1-1z" /></>,
     trash: <><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13" /></>,
     pencil: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>,
+    trophy: <><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z" /><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" /></>,
   }
   return <svg viewBox="0 0 24 24" {...s}>{paths[name]}</svg>
 }
@@ -45,12 +48,27 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings, canContinue, saves, onSavesChange }: MainMenuProps) {
+function formatDuration(secs: number) {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m`
+  return `${secs}s`
+}
+
+export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings, canContinue, saves, onSavesChange, completed, onCompletedChange }: MainMenuProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [view, setView] = useState<View>('main')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
+  const [viewingId, setViewingId] = useState<string | null>(null)
+
+  const handleDeleteCompleted = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    void deleteCompleted(id).then(() => listCompleted().then(onCompletedChange))
+    onCompletedChange(completed.filter(c => c.id !== id))
+  }
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return
@@ -165,6 +183,67 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
     )
   }
 
+  if (view === 'completed') {
+    const viewing = completed.find(c => c.id === viewingId) ?? null
+    return (
+      <div className="screen scroll fade-in">
+        <div className="topbar">
+          <button className="back-link" onClick={() => { setViewingId(null); setView('main') }}>← Back</button>
+        </div>
+        <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8 }}>
+          <h1 className="page-title">Completed Puzzles</h1>
+          <div className="saved-list">
+            {completed.length === 0 && (
+              <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
+                No completed puzzles yet — finish one to see it here.
+              </div>
+            )}
+            {completed.map(c => (
+              <div key={c.id} className="saved-item" onClick={() => setViewingId(c.id)}>
+                {c.thumbnailUrl
+                  ? <img className="saved-thumb" src={c.thumbnailUrl} alt="" />
+                  : <div className="saved-thumb" style={{ background: 'var(--surface-2)' }} />
+                }
+                <div className="saved-meta">
+                  <div className="t">{c.imageName}</div>
+                  <div className="s">{c.pieceCount.toLocaleString()} pieces · {formatDate(c.completedAt)}</div>
+                  <div style={{ fontSize: '.8rem', color: 'var(--text-dim)', marginTop: 6 }}>
+                    ✓ Completed in {formatDuration(c.elapsed)}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-icon btn-ghost"
+                  title="Delete"
+                  aria-label={`Delete ${c.imageName}`}
+                  onClick={e => handleDeleteCompleted(c.id, e)}
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {viewing && (
+          <div className="win-overlay" role="dialog" aria-modal="true" onClick={() => setViewingId(null)}>
+            <div className="card completed-viewer" onClick={e => e.stopPropagation()}>
+              <img src={viewing.imageDataUrl} alt={viewing.imageName} className="completed-img" />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-head)', fontSize: '1.1rem' }}>{viewing.imageName}</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: '.85rem', marginTop: 4 }}>
+                  {viewing.pieceCount.toLocaleString()} pieces · completed in {formatDuration(viewing.elapsed)}
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-block" style={{ justifyContent: 'center' }} onClick={() => setViewingId(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="screen fade-in">
       <div className="center-col">
@@ -211,6 +290,15 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
           >
             <Icon name="folder" /> Load Saved
             {saves.length > 0 && <span className="badge">{saves.length}</span>}
+          </button>
+
+          <button
+            className="btn btn-lg"
+            onClick={() => setView('completed')}
+            disabled={completed.length === 0}
+          >
+            <Icon name="trophy" /> Completed
+            {completed.length > 0 && <span className="badge">{completed.length}</span>}
           </button>
 
           <button className="btn btn-lg" onClick={onSettings}>

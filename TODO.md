@@ -64,14 +64,17 @@ not code:
 
 Fully wired: [`electron/steam.ts`](./electron/steam.ts) owns the `steamworks.js`
 client in the main process, exposed to the renderer as `window.steamAPI` via the
-preload. [`src/steam/achievements.ts`](./src/steam/achievements.ts) calls it, and
-`PuzzleGame.handleComplete` already fires per-size + `FIRST_PUZZLE` + `SPEED_RUN`.
-Everything degrades to a no-op without Steam / an App ID, so nothing left in code.
+preload. [`src/steam/achievements.ts`](./src/steam/achievements.ts) calls it.
+`PuzzleGame` fires per-size completion + `FIRST_PUZZLE` + `SPEED_RUN`, plus the
+cumulative **lifetime pieces-placed** milestones (100/1k/10k/100k/1M) tracked in
+[`utils/stats.ts`](./src/utils/stats.ts). Everything degrades to a no-op without
+Steam / an App ID, so nothing left in code.
 
 Remaining (config / store, once the Steam app exists):
 - [ ] Set `STEAM_APP_ID` (env) or ship `steam_appid.txt` with the numeric App ID.
 - [ ] Define the achievements in the Steamworks dashboard with IDs matching
-      `ACHIEVEMENTS` (`ACH_FIRST_PUZZLE`, `ACH_PUZZLE_*`, `ACH_SPEED_RUN`).
+      `ACHIEVEMENTS`: `ACH_FIRST_PUZZLE`, `ACH_PUZZLE_*`, `ACH_SPEED_RUN`, and the
+      lifetime tiers `ACH_PLACED_100/1000/10000/100000/1000000`.
 - [ ] Verify on a Steam build that completing a puzzle unlocks the achievement.
 
 ## Polish / nice-to-have 🟢
@@ -87,6 +90,12 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **Completed puzzles kept in the menu** — finishing a puzzle stores it in a
+      separate IndexedDB store (full finished image + time taken), shown in a new
+      "Completed" menu view; not subject to the 5-save in-progress trim. The
+      finished puzzle is removed from "Load Saved".
+- [x] **Lifetime pieces-placed achievements** — cumulative counter
+      (`utils/stats.ts`) unlocks 100/1k/10k/100k/1M tiers as pieces are placed.
 - [x] **Autosave on placement** — a debounced save (1.5s) now fires whenever a
       piece is correctly placed, plus on completion; back-to-menu/manual save
       still work. Progress survives an unexpected close, not just clean exits.

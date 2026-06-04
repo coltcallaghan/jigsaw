@@ -18,7 +18,22 @@ export const ACHIEVEMENTS = {
   PUZZLE_5000: 'ACH_PUZZLE_5000',
   PUZZLE_10000: 'ACH_PUZZLE_10000',
   SPEED_RUN: 'ACH_SPEED_RUN',
+  // Cumulative lifetime pieces placed across all puzzles.
+  PLACED_100: 'ACH_PLACED_100',
+  PLACED_1000: 'ACH_PLACED_1000',
+  PLACED_10000: 'ACH_PLACED_10000',
+  PLACED_100000: 'ACH_PLACED_100000',
+  PLACED_1000000: 'ACH_PLACED_1000000',
 } as const
+
+/** Lifetime-pieces milestones, ascending. */
+const PLACED_MILESTONES: { threshold: number; key: AchievementKey }[] = [
+  { threshold: 100, key: 'PLACED_100' },
+  { threshold: 1000, key: 'PLACED_1000' },
+  { threshold: 10000, key: 'PLACED_10000' },
+  { threshold: 100000, key: 'PLACED_100000' },
+  { threshold: 1000000, key: 'PLACED_1000000' },
+]
 
 type AchievementKey = keyof typeof ACHIEVEMENTS
 
@@ -33,6 +48,13 @@ export function unlockAchievement(key: AchievementKey): void {
   if (!bridge) return // Not running under Steam — no-op.
   // Fire-and-forget; failures (Steam offline, etc.) are intentionally ignored.
   void bridge.activateAchievement(id).catch(() => {})
+}
+
+/** Unlock any lifetime-pieces milestones reached at `totalPlaced`. */
+export function unlockPieceMilestones(totalPlaced: number): void {
+  for (const { threshold, key } of PLACED_MILESTONES) {
+    if (totalPlaced >= threshold) unlockAchievement(key)
+  }
 }
 
 export function getAchievementForPieceCount(count: number): AchievementKey | null {

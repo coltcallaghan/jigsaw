@@ -5,10 +5,11 @@ import type { PuzzleConfig } from '../puzzle/types'
 import type { GameSettings } from '../hooks/useSettings'
 import { snapFraction } from '../hooks/useSettings'
 import type { SaveData, PieceState } from '../utils/saveGame'
-import { writeSave, makeThumbnail } from '../utils/saveGame'
+import { writeSave, writeCompleted, makeThumbnail } from '../utils/saveGame'
 import PieceTray from './PieceTray'
 import ZoomPanControls from './ZoomPanControls'
-import { getAchievementForPieceCount, unlockAchievement } from '../steam/achievements'
+import { getAchievementForPieceCount, unlockAchievement, unlockPieceMilestones } from '../steam/achievements'
+import { addLifetimePieces } from '../utils/stats'
 import { AudioManager } from '../audio/AudioManager'
 
 interface PuzzleGameProps {
@@ -19,10 +20,12 @@ interface PuzzleGameProps {
   onSettingsChange: (patch: Partial<GameSettings>) => void
   onBackToMenu: () => void
   onSave: (save: SaveData) => void
+  /** Fired once the puzzle is finished (id of the now-completed puzzle). */
+  onComplete: (completedId: string) => void
 }
 
 export default function PuzzleGame({
-  config, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave,
+  config, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete,
 }: PuzzleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
@@ -46,6 +49,9 @@ export default function PuzzleGame({
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const placedRef = useRef(0)
   const restoringRef = useRef(false)
+  // Last placed-count counted toward the lifetime total, so we only add the
+  // delta of newly placed pieces (and never recount restored progress).
+  const countedPlacedRef = useRef(0)
 
   const { cols, rows } = computeGrid(config.imageWidth, config.imageHeight, config.pieceCount)
   const total = cols * rows
@@ -80,6 +86,10 @@ export default function PuzzleGame({
   const saveGameRef = useRef(saveGame)
   saveGameRef.current = saveGame
 
+  // Stable handle to the onComplete prop (not memoized by the parent).
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+
   const currentElapsed = useCallback(
     () => Math.floor(elapsedBaseRef.current + (Date.now() - startTimeRef.current) / 1000),
     []
@@ -103,14 +113,26 @@ export default function PuzzleGame({
     AudioManager.play('puzzle_complete')
     if (timerRef.current) clearInterval(timerRef.current)
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
-    const engine = engineRef.current
-    if (engine) void saveGameRef.current(engine, currentElapsed(), placedRef.current)
+    const finalElapsed = currentElapsed()
+    // Keep the finished puzzle so players can look back at it.
+    void makeThumbnail(config.imageDataUrl, 240, 160).then(thumb => {
+      void writeCompleted({
+        id: saveIdRef.current,
+        imageName: config.name,
+        pieceCount: total,
+        imageDataUrl: config.imageDataUrl,
+        thumbnailUrl: thumb,
+        elapsed: finalElapsed,
+        completedAt: Date.now(),
+      })
+    })
+    // Let the parent drop the in-progress save and refresh the menu lists.
+    onCompleteRef.current(saveIdRef.current)
     const ach = getAchievementForPieceCount(config.pieceCount)
     if (ach) unlockAchievement(ach)
     unlockAchievement('FIRST_PUZZLE')
-    const secs = elapsedBaseRef.current + (Date.now() - startTimeRef.current) / 1000
-    if (secs < 600) unlockAchievement('SPEED_RUN')
-  }, [config.pieceCount])
+    if (finalElapsed < 600) unlockAchievement('SPEED_RUN')
+  }, [config, total])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -124,8 +146,19 @@ export default function PuzzleGame({
       onProgress: (p) => {
         setPlaced(p)
         placedRef.current = p
-        // Don't autosave the progress burst emitted while restoring a save.
-        if (!restoringRef.current) scheduleAutosave()
+        if (restoringRef.current) {
+          // Restored progress: count it as already-placed, don't autosave.
+          countedPlacedRef.current = p
+          return
+        }
+        // Tally newly placed pieces toward the lifetime total + milestones.
+        const delta = p - countedPlacedRef.current
+        if (delta > 0) {
+          countedPlacedRef.current = p
+          const total = addLifetimePieces(delta)
+          unlockPieceMilestones(total)
+        }
+        scheduleAutosave()
       },
       onComplete: handleComplete,
       onTrayUpdate: (ids) => setTrayPieceIds(ids),
