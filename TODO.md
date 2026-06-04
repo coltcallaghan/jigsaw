@@ -87,6 +87,9 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **Autosave on placement** — a debounced save (1.5s) now fires whenever a
+      piece is correctly placed, plus on completion; back-to-menu/manual save
+      still work. Progress survives an unexpected close, not just clean exits.
 - [x] **Load Saved was empty / disabled** — saves embedded the full-res image and
       blew past localStorage's ~5MB quota, so `writeSave` silently failed. Moved
       the save store to on-device **IndexedDB** (full-res kept, larger quota) with

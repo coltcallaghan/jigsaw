@@ -42,6 +42,10 @@ export default function PuzzleGame({
   const startTimeRef = useRef<number>(0)
   const elapsedBaseRef = useRef<number>(savedElapsed)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Debounced autosave: coalesce rapid placements into one write.
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const placedRef = useRef(0)
+  const restoringRef = useRef(false)
 
   const { cols, rows } = computeGrid(config.imageWidth, config.imageHeight, config.pieceCount)
   const total = cols * rows
@@ -70,10 +74,37 @@ export default function PuzzleGame({
     onSave(save)
   }, [config, cols, rows, total, onSave])
 
+  // Keep a stable handle to the latest saveGame so the engine-init effect and
+  // handleComplete don't need it as a dependency (which would rebuild the puzzle
+  // whenever the parent re-renders the onSave callback).
+  const saveGameRef = useRef(saveGame)
+  saveGameRef.current = saveGame
+
+  const currentElapsed = useCallback(
+    () => Math.floor(elapsedBaseRef.current + (Date.now() - startTimeRef.current) / 1000),
+    []
+  )
+
+  // Autosave shortly after a piece is correctly placed; debounced so a flurry of
+  // placements (or restoring a save) collapses into a single IndexedDB write.
+  const AUTOSAVE_DELAY = 1500
+  const scheduleAutosave = useCallback(() => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      const engine = engineRef.current
+      if (engine && placedRef.current > 0) {
+        void saveGameRef.current(engine, currentElapsed(), placedRef.current)
+      }
+    }, AUTOSAVE_DELAY)
+  }, [currentElapsed])
+
   const handleComplete = useCallback(() => {
     setIsComplete(true)
     AudioManager.play('puzzle_complete')
     if (timerRef.current) clearInterval(timerRef.current)
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    const engine = engineRef.current
+    if (engine) void saveGameRef.current(engine, currentElapsed(), placedRef.current)
     const ach = getAchievementForPieceCount(config.pieceCount)
     if (ach) unlockAchievement(ach)
     unlockAchievement('FIRST_PUZZLE')
@@ -90,7 +121,12 @@ export default function PuzzleGame({
       config,
       theme: settings.theme,
       outlines: settings.outlines,
-      onProgress: (p) => setPlaced(p),
+      onProgress: (p) => {
+        setPlaced(p)
+        placedRef.current = p
+        // Don't autosave the progress burst emitted while restoring a save.
+        if (!restoringRef.current) scheduleAutosave()
+      },
       onComplete: handleComplete,
       onTrayUpdate: (ids) => setTrayPieceIds(ids),
       onReady: () => {
@@ -98,7 +134,9 @@ export default function PuzzleGame({
         engine.setSnapSensitivity(snapFraction(settings.snapSensitivity))
 
         if (savedState && savedState.length > 0) {
+          restoringRef.current = true
           engine.loadFromSave(savedState)
+          restoringRef.current = false
         }
 
         setIsLoading(false)
@@ -118,6 +156,7 @@ export default function PuzzleGame({
     return () => {
       resizeObs.disconnect()
       if (timerRef.current) clearInterval(timerRef.current)
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
       engine.destroy()
     }
   }, [config, handleComplete]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -150,10 +189,10 @@ export default function PuzzleGame({
   }
 
   const handleBackToMenu = async () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     const engine = engineRef.current
     if (engine && placed > 0) {
-      const currentElapsed = Math.floor(elapsedBaseRef.current + (Date.now() - startTimeRef.current) / 1000)
-      await saveGame(engine, currentElapsed, placed)
+      await saveGame(engine, currentElapsed(), placed)
     }
     onBackToMenu()
   }
