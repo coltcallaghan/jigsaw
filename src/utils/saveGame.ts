@@ -25,61 +25,155 @@ export interface SaveData extends SaveMeta {
   pieces: PieceState[]
 }
 
-const INDEX_KEY = 'jigsaw_saves'
-const PREFIX = 'jigsaw_save_'
 const MAX_SAVES = 5
 
-export function listSaves(): SaveMeta[] {
-  try { return JSON.parse(localStorage.getItem(INDEX_KEY) ?? '[]') } catch { return [] }
-}
+// ─── IndexedDB plumbing ──────────────────────────────────────────────────────
+//
+// Saves embed the full-resolution image data URL, which can be several MB each —
+// far beyond localStorage's ~5MB origin quota (which caused saves to silently
+// fail). IndexedDB is also fully on-device (no network/cloud) but has a much
+// larger quota, so full-res images persist reliably.
 
-export function getSave(id: string): SaveData | null {
-  try {
-    const raw = localStorage.getItem(PREFIX + id)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
+const DB_NAME = 'jigsaw'
+const DB_VERSION = 1
+const STORE = 'saves'
 
-export function writeSave(data: SaveData): boolean {
-  try {
-    localStorage.setItem(PREFIX + data.id, JSON.stringify(data))
-    const list = listSaves().filter(s => s.id !== data.id)
-    list.unshift({
-      id: data.id,
-      imageName: data.imageName,
-      pieceCount: data.pieceCount,
-      placedCount: data.placedCount,
-      updatedAt: data.updatedAt,
-      thumbnailUrl: data.thumbnailUrl,
-    })
-    while (list.length > MAX_SAVES) {
-      const old = list.pop()!
-      localStorage.removeItem(PREFIX + old.id)
+let dbPromise: Promise<IDBDatabase> | null = null
+
+function openDB(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'id' })
+      }
     }
-    localStorage.setItem(INDEX_KEY, JSON.stringify(list))
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+  return dbPromise
+}
+
+function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return openDB().then(
+    db =>
+      new Promise<T>((resolve, reject) => {
+        const transaction = db.transaction(STORE, mode)
+        const req = fn(transaction.objectStore(STORE))
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+  )
+}
+
+function toMeta(data: SaveData): SaveMeta {
+  return {
+    id: data.id,
+    imageName: data.imageName,
+    pieceCount: data.pieceCount,
+    placedCount: data.placedCount,
+    updatedAt: data.updatedAt,
+    thumbnailUrl: data.thumbnailUrl,
+  }
+}
+
+// ─── Public API (async) ──────────────────────────────────────────────────────
+
+/** List save metadata, newest first. */
+export async function listSaves(): Promise<SaveMeta[]> {
+  try {
+    await migrateFromLocalStorage()
+    const all = await tx<SaveData[]>('readonly', store => store.getAll() as IDBRequest<SaveData[]>)
+    return all
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .map(toMeta)
+  } catch {
+    return []
+  }
+}
+
+export async function getSave(id: string): Promise<SaveData | null> {
+  try {
+    const data = await tx<SaveData | undefined>('readonly', store => store.get(id) as IDBRequest<SaveData | undefined>)
+    return data ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Persist a save, trimming to the most recent MAX_SAVES. Returns success. */
+export async function writeSave(data: SaveData): Promise<boolean> {
+  try {
+    await tx('readwrite', store => store.put(data))
+    await trimSaves()
     return true
-  } catch { return false }
+  } catch {
+    return false
+  }
 }
 
-export function deleteSave(id: string): void {
-  localStorage.removeItem(PREFIX + id)
-  const list = listSaves().filter(s => s.id !== id)
-  localStorage.setItem(INDEX_KEY, JSON.stringify(list))
+export async function deleteSave(id: string): Promise<void> {
+  try {
+    await tx('readwrite', store => store.delete(id))
+  } catch {
+    // best-effort
+  }
 }
 
-/** Rename a saved puzzle, updating both the index and the full save record. */
-export function renameSave(id: string, name: string): SaveMeta[] {
+/** Rename a saved puzzle; returns the refreshed metadata list. */
+export async function renameSave(id: string, name: string): Promise<SaveMeta[]> {
   const trimmed = name.trim()
   if (!trimmed) return listSaves()
-
-  const list = listSaves().map(s => (s.id === id ? { ...s, imageName: trimmed } : s))
-  localStorage.setItem(INDEX_KEY, JSON.stringify(list))
-
-  const save = getSave(id)
-  if (save) {
-    localStorage.setItem(PREFIX + id, JSON.stringify({ ...save, imageName: trimmed }))
+  try {
+    const save = await getSave(id)
+    if (save) {
+      await tx('readwrite', store => store.put({ ...save, imageName: trimmed }))
+    }
+  } catch {
+    // best-effort
   }
-  return list
+  return listSaves()
+}
+
+async function trimSaves(): Promise<void> {
+  const all = await tx<SaveData[]>('readonly', store => store.getAll() as IDBRequest<SaveData[]>)
+  if (all.length <= MAX_SAVES) return
+  const stale = all.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_SAVES)
+  for (const save of stale) {
+    await tx('readwrite', store => store.delete(save.id))
+  }
+}
+
+// ─── One-time migration from the old localStorage layout ─────────────────────
+
+const LEGACY_INDEX_KEY = 'jigsaw_saves'
+const LEGACY_PREFIX = 'jigsaw_save_'
+let migrated = false
+
+async function migrateFromLocalStorage(): Promise<void> {
+  if (migrated) return
+  migrated = true
+  try {
+    const raw = localStorage.getItem(LEGACY_INDEX_KEY)
+    if (!raw) return
+    const metas: SaveMeta[] = JSON.parse(raw)
+    for (const meta of metas) {
+      const saveRaw = localStorage.getItem(LEGACY_PREFIX + meta.id)
+      if (!saveRaw) continue
+      try {
+        const save: SaveData = JSON.parse(saveRaw)
+        await tx('readwrite', store => store.put(save))
+      } catch {
+        // skip a corrupt legacy entry
+      }
+      localStorage.removeItem(LEGACY_PREFIX + meta.id)
+    }
+    localStorage.removeItem(LEGACY_INDEX_KEY)
+  } catch {
+    // No legacy data or storage unavailable — nothing to migrate.
+  }
 }
 
 /** Downscale an image data-url to a tiny thumbnail. */

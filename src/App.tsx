@@ -21,8 +21,13 @@ export default function App() {
   const [imageName, setImageName] = useState('')
   const [puzzleConfig, setPuzzleConfig] = useState<PuzzleConfig | null>(null)
   const [activeSave, setActiveSave] = useState<SaveData | null>(null)
-  const [saves, setSaves] = useState<SaveMeta[]>(() => listSaves())
+  const [saves, setSaves] = useState<SaveMeta[]>([])
   const [consented, setConsented] = useState<boolean>(() => hasAcceptedCurrentPolicy())
+
+  // Saves live in IndexedDB (async) — load the list on mount.
+  useEffect(() => {
+    void listSaves().then(setSaves)
+  }, [])
 
   const { settings, setSettings, resetSettings } = useSettings()
 
@@ -83,8 +88,8 @@ export default function App() {
     else if (puzzleConfig) setScreen('game')
   }
 
-  const handleLoadSave = (id: string) => {
-    const save = getSave(id)
+  const handleLoadSave = async (id: string) => {
+    const save = await getSave(id)
     if (!save) return
     setActiveSave(save)
     // Backfill name for saves created before puzzles were named.
@@ -94,7 +99,7 @@ export default function App() {
 
   const handleSaveGame = (save: SaveData) => {
     setActiveSave(save)
-    setSaves(listSaves())
+    void listSaves().then(setSaves)
   }
 
   const handleBackToMenu = () => setScreen('menu')

@@ -66,7 +66,7 @@ export default function PuzzleGame({
       config: { ...config, cols, rows },
       pieces,
     }
-    writeSave(save)
+    await writeSave(save)
     onSave(save)
   }, [config, cols, rows, total, onSave])
 

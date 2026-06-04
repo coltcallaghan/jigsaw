@@ -76,7 +76,7 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    deleteSave(id)
+    void deleteSave(id)
     onSavesChange(saves.filter(s => s.id !== id))
   }
 
@@ -88,7 +88,8 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
 
   const commitRename = () => {
     if (!renamingId) return
-    onSavesChange(renameSave(renamingId, renameText))
+    const id = renamingId
+    void renameSave(id, renameText).then(onSavesChange)
     setRenamingId(null)
   }
 
