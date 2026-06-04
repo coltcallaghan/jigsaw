@@ -24,10 +24,12 @@ interface PuzzleGameProps {
   onSave: (save: SaveData) => void
   /** Fired once the puzzle is finished (id of the now-completed puzzle). */
   onComplete: (completedId: string) => void
+  /** Start a brand-new puzzle (jumps straight to image selection). */
+  onNewPuzzle: () => void
 }
 
 export default function PuzzleGame({
-  config, saveId, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete,
+  config, saveId, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete, onNewPuzzle,
 }: PuzzleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
@@ -397,7 +399,7 @@ export default function PuzzleGame({
               </div>
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
-              <button className="btn btn-primary" onClick={onBackToMenu}>New Puzzle</button>
+              <button className="btn btn-primary" onClick={onNewPuzzle}>New Puzzle</button>
               <button className="btn btn-ghost" onClick={onBackToMenu}>Menu</button>
             </div>
           </div>

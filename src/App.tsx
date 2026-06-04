@@ -7,6 +7,7 @@ import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
 import { listSaves, getSave, deleteSave, listCompleted, getStorageStatus, type SaveData, type SaveMeta, type CompletedPuzzle } from './utils/saveGame'
 import { nextPuzzleName } from './utils/puzzleNaming'
+import { pickImage } from './utils/pickImage'
 import { hasAcceptedCurrentPolicy, acceptCurrentPolicy } from './utils/consent'
 import ConsentGate from './components/ConsentGate'
 import { AudioManager } from './audio/AudioManager'
@@ -77,6 +78,18 @@ export default function App() {
     // the source file name. The name is editable on the setup screen.
     setImageName(nextPuzzleName())
     setScreen('setup')
+  }
+
+  // Used by the win overlay's "New Puzzle" — go straight to image selection,
+  // clearing any finished-puzzle state first.
+  const handleNewPuzzle = async () => {
+    const dataUrl = await pickImage()
+    if (!dataUrl) return
+    setPuzzleFinished(false)
+    setPuzzleConfig(null)
+    setPuzzleId(null)
+    setActiveSave(null)
+    handleImageSelected(dataUrl)
   }
 
   const handleStart = (pieceCount: PieceCountOption, name: string) => {
@@ -190,6 +203,7 @@ export default function App() {
           onBackToMenu={handleBackToMenu}
           onSave={handleSaveGame}
           onComplete={handlePuzzleComplete}
+          onNewPuzzle={handleNewPuzzle}
         />
       )}
 
