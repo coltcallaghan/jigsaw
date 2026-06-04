@@ -15,9 +15,9 @@ const PUBLIC = join(root, 'public')
 const SFX = [
   'piece_snap', 'piece_group', 'piece_pickup',
   'puzzle_complete', 'tray_add', 'tray_retrieve',
-].map(k => `audio/sfx/${k}.mp3`)
+].map(k => `audio/sfx/${k}.wav`)
 
-const MUSIC = ['cartoon', 'modern', 'dark', 'arcade'].map(t => `audio/music/${t}.mp3`)
+const MUSIC = ['cartoon', 'modern', 'dark', 'arcade'].map(t => `audio/music/${t}.wav`)
 
 const expected = [...SFX, ...MUSIC]
 const missing = expected.filter(rel => !existsSync(join(PUBLIC, rel)))

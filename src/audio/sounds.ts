@@ -22,18 +22,18 @@ export type SfxKey =
 
 /** SFX are shared across themes — one file per event. */
 export const SFX_SOURCES: Record<SfxKey, string> = {
-  piece_snap: 'audio/sfx/piece_snap.mp3',
-  piece_group: 'audio/sfx/piece_group.mp3',
-  piece_pickup: 'audio/sfx/piece_pickup.mp3',
-  puzzle_complete: 'audio/sfx/puzzle_complete.mp3',
-  tray_add: 'audio/sfx/tray_add.mp3',
-  tray_retrieve: 'audio/sfx/tray_retrieve.mp3',
+  piece_snap: 'audio/sfx/piece_snap.wav',
+  piece_group: 'audio/sfx/piece_group.wav',
+  piece_pickup: 'audio/sfx/piece_pickup.wav',
+  puzzle_complete: 'audio/sfx/puzzle_complete.wav',
+  tray_add: 'audio/sfx/tray_add.wav',
+  tray_retrieve: 'audio/sfx/tray_retrieve.wav',
 }
 
 /** One looping background track per theme, to match each theme's mood. */
 export const MUSIC_SOURCES: Record<Theme, string> = {
-  cartoon: 'audio/music/cartoon.mp3', // playful / bouncy
-  modern: 'audio/music/modern.mp3',   // minimal / lo-fi
-  dark: 'audio/music/dark.mp3',       // atmospheric / ambient
-  arcade: 'audio/music/arcade.mp3',   // chiptune / 8-bit
+  cartoon: 'audio/music/cartoon.wav', // playful / bouncy
+  modern: 'audio/music/modern.wav',   // minimal / lo-fi
+  dark: 'audio/music/dark.wav',       // atmospheric / ambient
+  arcade: 'audio/music/arcade.wav',   // chiptune / 8-bit
 }
