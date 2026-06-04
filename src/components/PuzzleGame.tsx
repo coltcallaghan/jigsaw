@@ -219,6 +219,10 @@ export default function PuzzleGame({
     engineRef.current?.setOutlines(settings.outlines)
   }, [settings.outlines])
 
+  useEffect(() => {
+    engineRef.current?.setTheme(settings.theme)
+  }, [settings.theme])
+
   const handleGhostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value)
     setGhostOpacity(val)

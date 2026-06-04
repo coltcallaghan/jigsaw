@@ -16,6 +16,10 @@ import { AudioManager } from '../audio/AudioManager'
 let SNAP_DISTANCE = 0.5  // fraction of piece size to trigger snap — overridable via setSnapSensitivity()
 const TAB_PAD_FRAC = 0.35 * 1.5
 
+// Hard cap on outline thickness as a fraction of the smaller piece dimension, so
+// the edge can never dominate the image on tiny pieces (e.g. 5k/10k puzzles).
+const EDGE_MAX_FRAC = 0.12
+
 // Board "felt" colour per theme — mirrors the --board-felt CSS tokens in theme.css
 const THEME_FELT: Record<Theme, number> = {
   cartoon: 0xB9E6FF,
@@ -34,6 +38,8 @@ export interface PuzzleEngineOptions {
   onTrayUpdate: (pieceIds: number[]) => void
   onReady: () => void
 }
+
+interface EdgeStroke { color: number; width: number; alpha: number }
 
 interface PieceSprite extends Sprite {
   pieceId: number
@@ -422,6 +428,7 @@ export class PuzzleEngine {
     this.board.scale.set(newScale)
     this.board.x = midX - worldX * newScale
     this.board.y = midY - worldY * newScale
+    this.refreshEdgeWidths()
   }
 
   // ─── Long-press to stash ───────────────────────────────────────────────────
@@ -540,6 +547,7 @@ export class PuzzleEngine {
     this.board.scale.set(newScale)
     this.board.x = pointerX - worldX * newScale
     this.board.y = pointerY - worldY * newScale
+    this.refreshEdgeWidths()
   }
 
   // ─── Camera ──────────────────────────────────────────────────────────────
@@ -562,6 +570,7 @@ export class PuzzleEngine {
     // Scatter is symmetric so the content centre = board centre (boardW/2, boardH/2)
     this.board.x = screenW / 2 - (boardW / 2) * scale
     this.board.y = screenH / 2 - (boardH / 2) * scale
+    this.refreshEdgeWidths()
   }
 
   private fitBoard() {
@@ -574,6 +583,7 @@ export class PuzzleEngine {
     this.board.scale.set(scale)
     this.board.x = (screenW - boardW * scale) / 2
     this.board.y = (screenH - boardH * scale) / 2
+    this.refreshEdgeWidths()
   }
 
   centerCamera() {
@@ -606,6 +616,7 @@ export class PuzzleEngine {
     this.board.scale.set(newScale)
     this.board.x = pivotX - worldX * newScale
     this.board.y = pivotY - worldY * newScale
+    this.refreshEdgeWidths()
   }
 
   // ─── Tray ────────────────────────────────────────────────────────────────
@@ -847,45 +858,154 @@ export class PuzzleEngine {
   }
 
   /**
-   * Two-tone outline: a wider dark "halo" stroke underneath plus a thinner
-   * light stroke on top. The pairing stays visible on any image — the dark
-   * halo reads against light areas, the light line reads against dark areas.
-   * `accent` lets a theme tint the top line (e.g. arcade neon).
+   * Piece edge outline, styled per theme so the pieces carry each theme's
+   * visual identity rather than a generic line:
+   *   cartoon — bold chunky black ink (sticker look)
+   *   modern  — faint hairline (minimal)
+   *   dark    — soft luminous light edge (no harsh black on the dark felt)
+   *   arcade  — neon: a wide cyan glow under a bright cyan line
+   *
+   * Each theme stacks 1–3 strokes (drawn widest→thinnest). A `glow` pass lays
+   * a wide, low-alpha colour halo for the neon look; `dark`/`light` are the
+   * usual two-tone contrast pair. Any pass with width 0 is skipped.
    */
-  private buildEdgeGraphics(def: PieceDefinition): Graphics {
-    type EdgeStyle = {
-      dark: number; light: number
-      darkAlpha: number; lightAlpha: number
-      darkWidth: number; lightWidth: number
+  /**
+   * Per-theme outline styling. Widths are expressed in SCREEN pixels and are
+   * divided by the current board zoom at draw time (see edgeWidthScale), so an
+   * outline stays the same visible thickness whether the board is fit-to-all,
+   * zoomed in, or the pieces are tiny on a large puzzle. Without this, a fixed
+   * world-space stroke shrinks to sub-pixel when zoomed out and the edges
+   * vanish — making every theme look identically "edgeless".
+   */
+  private edgeStyle(): { glow?: EdgeStroke; dark?: EdgeStroke; light?: EdgeStroke } {
+    const styles: Record<Theme, { glow?: EdgeStroke; dark?: EdgeStroke; light?: EdgeStroke }> = {
+      // Bold, high-contrast black ink with a crisp white highlight — playful.
+      cartoon: {
+        dark:  { color: 0x2B2B2B, width: 4.0, alpha: 0.90 },
+        light: { color: 0xFFFFFF, width: 1.5, alpha: 0.60 },
+      },
+      // Minimal but still legible: a soft neutral hairline + faint highlight.
+      modern: {
+        dark:  { color: 0x111827, width: 2.2, alpha: 0.45 },
+        light: { color: 0xFFFFFF, width: 1.2, alpha: 0.45 },
+      },
+      // Soft luminous light edge so pieces read on the near-black felt without
+      // a heavy black halo; a faint dark base keeps it visible on bright areas.
+      dark: {
+        dark:  { color: 0x000000, width: 2.8, alpha: 0.45 },
+        light: { color: 0xCBD8FF, width: 2.0, alpha: 0.85 },
+      },
+      // Neon: wide cyan glow under a bright cyan line, on a thin dark base.
+      arcade: {
+        glow:  { color: 0x07F2E6, width: 6.0, alpha: 0.35 },
+        dark:  { color: 0x16001A, width: 3.0, alpha: 0.60 },
+        light: { color: 0x07F2E6, width: 1.8, alpha: 0.95 },
+      },
     }
-    const edgeStyle: Record<Theme, EdgeStyle> = {
-      cartoon: { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.45, lightAlpha: 0.55, darkWidth: 3.0, lightWidth: 1.4 },
-      modern:  { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.40, lightAlpha: 0.55, darkWidth: 2.6, lightWidth: 1.2 },
-      dark:    { dark: 0x000000, light: 0xFFFFFF, darkAlpha: 0.50, lightAlpha: 0.65, darkWidth: 2.8, lightWidth: 1.2 },
-      arcade:  { dark: 0x000000, light: 0x07F2E6, darkAlpha: 0.55, lightAlpha: 0.85, darkWidth: 3.0, lightWidth: 1.5 },
-    }
-    const s = edgeStyle[this.theme]
-    const path = buildPiecePath(def.edges, def.srcW, def.srcH)
+    return styles[this.theme]
+  }
 
+  /**
+   * Convert a screen-pixel stroke width into world units for the current zoom.
+   * Clamped so outlines never balloon when zoomed far out, nor disappear when
+   * zoomed far in.
+   */
+  private edgeWidthScale(): number {
+    const scale = this.appInitialized ? this.board.scale.x : 1
+    // 1/scale keeps on-screen width constant; clamp the multiplier to a sane band.
+    return Math.max(1, Math.min(12, 1 / Math.max(scale, 0.0001)))
+  }
+
+  private drawEdge(g: Graphics, def: PieceDefinition) {
+    const s = this.edgeStyle()
+    const path = buildPiecePath(def.edges, def.srcW, def.srcH)
+    const passes = [s.glow, s.dark, s.light].filter((p): p is EdgeStroke => !!p && p.width > 0)
+    if (passes.length === 0) { g.clear(); return }
+
+    // Keep on-screen thickness constant by counter-scaling for zoom...
+    let k = this.edgeWidthScale()
+
+    // ...but never let the outline swamp the piece: on very small pieces (large
+    // puzzles) a constant-screen-width stroke can be wider than the piece itself,
+    // burying the image under ink. Cap the WIDEST pass to a fraction of the piece
+    // size and scale the whole stack down together so the layering is preserved.
+    const widest = Math.max(...passes.map(p => p.width))
+    const maxWorld = Math.min(def.srcW, def.srcH) * EDGE_MAX_FRAC
+    if (widest * k > maxWorld) k = maxWorld / widest
+
+    g.clear()
+    // Draw widest → thinnest so each pass sits on top of the previous.
+    for (const pass of passes) {
+      this.applyPathToGraphics(path, g)
+      g.stroke({ color: pass.color, width: pass.width * k, alpha: pass.alpha })
+    }
+  }
+
+  private buildEdgeGraphics(def: PieceDefinition): Graphics {
     const g = new Graphics()
     g.label = 'edge'
     g.eventMode = 'none'
     g.x = -def.srcW / 2
     g.y = -def.srcH / 2
-
-    // Dark halo first (underneath)
-    this.applyPathToGraphics(path, g)
-    g.stroke({ color: s.dark, width: s.darkWidth, alpha: s.darkAlpha })
-    // Light line on top
-    this.applyPathToGraphics(path, g)
-    g.stroke({ color: s.light, width: s.lightWidth, alpha: s.lightAlpha })
-
+    this.drawEdge(g, def)
     return g
+  }
+
+  /**
+   * Redraw all edge outlines at the current zoom so their on-screen thickness
+   * stays constant. Called after any zoom change.
+   */
+  private refreshEdgeWidths() {
+    if (!this.appInitialized) return
+    this.edgeGraphics.forEach((g, id) => {
+      this.drawEdge(g, this.definitions[id])
+    })
   }
 
   setOutlines(enabled: boolean) {
     this.outlines = enabled
     this.edgeGraphics.forEach(g => { g.visible = enabled })
+  }
+
+  /**
+   * Switch the active theme at runtime. Piece edge outlines, placed-piece
+   * borders and the board felt are all styled per theme, so each must be
+   * rebuilt — otherwise pieces keep the outline of whichever theme was active
+   * when the puzzle first loaded.
+   */
+  setTheme(theme: Theme) {
+    if (!this.appInitialized || theme === this.theme) return
+    this.theme = theme
+
+    // Rebuild every piece's edge outline in the new theme's style.
+    this.pieces.forEach((sprite) => {
+      const def = this.definitions[sprite.pieceId]
+
+      const oldEdge = this.edgeGraphics.get(sprite.pieceId)
+      if (oldEdge) {
+        sprite.removeChild(oldEdge)
+        oldEdge.destroy()
+      }
+      const edge = this.buildEdgeGraphics(def)
+      edge.visible = this.outlines
+      sprite.addChild(edge)
+      this.edgeGraphics.set(sprite.pieceId, edge)
+
+      // Placed pieces also carry a per-theme border — refresh it.
+      if (sprite.placed) {
+        const oldBorder = sprite.getChildByLabel('placed-border')
+        if (oldBorder) {
+          sprite.removeChild(oldBorder)
+          oldBorder.destroy()
+        }
+        this.addPlacedBorder(sprite, def)
+      }
+    })
+
+    // Repaint the board felt to match the new theme.
+    const felt = THEME_FELT[theme] ?? THEME_FELT.dark
+    this.app.renderer.background.color = felt
+    this.rebuildBoardBg(felt)
   }
 
   private addPlacedBorder(sprite: PieceSprite, def: PieceDefinition) {
