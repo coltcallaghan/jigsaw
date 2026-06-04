@@ -54,11 +54,14 @@ The paid lock on large puzzle sizes is **implemented**: sizes over
 themed `UpsellModal` (purchase + restore) via RevenueCat. Remaining is config,
 not code:
 
-- [ ] Create the RevenueCat project, the non-consumable product
-      `com.coltcallaghan.jigsaw.unlock_all`, and entitlement `unlock_all_sizes`.
-- [ ] Set `VITE_RC_IOS_KEY` / `VITE_RC_ANDROID_KEY` (CI secrets + local `.env`).
+- [x] RevenueCat project + non-consumable product
+      `com.coltcallaghan.jigsaw.unlock_all` + entitlement `unlock_all_sizes`
+      (product attached). No Offering needed — app fetches product by ID.
+- [x] Local `.env` set with the sandbox (`test_`) key for device testing.
+- [ ] Add real App Store + Play apps in RevenueCat (product is sandbox-only now)
+      and set production `VITE_RC_IOS_KEY` / `VITE_RC_ANDROID_KEY` in CI secrets.
 - [ ] Create the matching IAP product in App Store Connect and Play Console.
-- [ ] Decide the unlock price.
+- [ ] Decide the unlock price (sandbox product is $2.99 for now).
 - [ ] Manual QA on a device: locked card → modal → purchase → sizes unlock →
       restore on reinstall.
 - [ ] (Optional) Revisit `FREE_PIECE_LIMIT` once you have pricing/UX feedback.

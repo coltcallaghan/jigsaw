@@ -15,19 +15,29 @@ Unlock entitlement (RevenueCat): **`unlock_all_sizes`**
 
 ## 0. Cross-cutting (do first)
 
-- [ ] **RevenueCat account** — create project, add the App Store + Play apps,
-      define entitlement `unlock_all_sizes` and a non-consumable product
-      `com.coltcallaghan.jigsaw.unlock_all`.
-- [ ] Put the **public** RevenueCat SDK keys in CI secrets `VITE_RC_IOS_KEY`,
-      `VITE_RC_ANDROID_KEY` (and in a local `.env` from `.env.example` for device testing).
-- [ ] **Privacy policy URL** — required by both mobile store *listings* even
-      though the policy is also shown in-app. Host the SAME text that ships in
-      `src/legal/content.ts` and note the URL here: `__________`.
+- [x] **RevenueCat account + project created.** Non-consumable product
+      `com.coltcallaghan.jigsaw.unlock_all` and entitlement `unlock_all_sizes`
+      (product attached) exist. NOTE: no Offering is needed — the app fetches the
+      product by ID (`getProducts` / `purchaseStoreProduct` in
+      `src/config/purchases.ts`), it does not read Offerings.
+- [ ] **Add the real App Store + Play apps in RevenueCat** and link the live IAPs
+      (the current product lives under RevenueCat's sandbox "Test Store" only).
+- [x] **Sandbox key in local `.env`** for device testing (`VITE_RC_IOS_KEY` /
+      `VITE_RC_ANDROID_KEY` set to the `test_…` key).
+- [ ] Put the **production** public RevenueCat SDK keys in CI secrets
+      `VITE_RC_IOS_KEY`, `VITE_RC_ANDROID_KEY` (one per platform — the Android key
+      differs from iOS once the Play app is added).
+- [x] **Privacy + Terms hosted** — generated from `src/legal/content.ts` and
+      deployed via GitHub Pages:
+      `https://coltcallaghan.github.io/jigsaw/privacy.html` and `…/terms.html`.
+      Use these URLs in the store listings.
 - [ ] **Review the bundled legal draft** in `src/legal/content.ts` (Privacy +
       Terms) before release — it is a reasonable draft, not legal advice. Confirm
-      wording, the effective date, and `CONTACT_EMAIL`. Bump `POLICY_VERSION` if
-      you change it materially (re-shows the first-run consent gate).
-- [ ] Decide pricing for the one-time unlock; set it per store.
+      wording, the effective date, and `CONTACT_EMAIL` (now
+      `callaghan.colt@gmail.com`). Bump `POLICY_VERSION` if you change it
+      materially (re-shows the first-run consent gate + regenerates hosted pages).
+- [ ] Decide pricing for the one-time unlock; set it per store. (Sandbox product
+      is currently $2.99 USD.)
 
 ## 1. Steam (desktop)
 
