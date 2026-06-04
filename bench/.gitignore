@@ -1,0 +1,4 @@
+# Local-only bench artifacts (large binaries / generated output).
+# Drop any photo here as sample.jpg to run the tray render + app-drive benches.
+sample.jpg
+shot-*.png
