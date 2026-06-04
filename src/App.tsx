@@ -5,7 +5,7 @@ import PuzzleGame from './components/PuzzleGame'
 import SettingsScreen from './components/SettingsScreen'
 import type { GameScreen, PieceCountOption, PuzzleConfig } from './puzzle/types'
 import { useSettings } from './hooks/useSettings'
-import { listSaves, getSave, deleteSave, listCompleted, type SaveData, type SaveMeta, type CompletedPuzzle } from './utils/saveGame'
+import { listSaves, getSave, deleteSave, listCompleted, getStorageStatus, type SaveData, type SaveMeta, type CompletedPuzzle } from './utils/saveGame'
 import { nextPuzzleName } from './utils/puzzleNaming'
 import { hasAcceptedCurrentPolicy, acceptCurrentPolicy } from './utils/consent'
 import ConsentGate from './components/ConsentGate'
@@ -23,12 +23,18 @@ export default function App() {
   const [activeSave, setActiveSave] = useState<SaveData | null>(null)
   const [saves, setSaves] = useState<SaveMeta[]>([])
   const [completed, setCompleted] = useState<CompletedPuzzle[]>([])
+  const [storageNearFull, setStorageNearFull] = useState(false)
   const [consented, setConsented] = useState<boolean>(() => hasAcceptedCurrentPolicy())
+
+  const refreshStorageStatus = () => {
+    void getStorageStatus().then(s => setStorageNearFull(s.nearFull))
+  }
 
   // Saves + completed puzzles live in IndexedDB (async) — load on mount.
   useEffect(() => {
     void listSaves().then(setSaves)
     void listCompleted().then(setCompleted)
+    refreshStorageStatus()
   }, [])
 
   const { settings, setSettings, resetSettings } = useSettings()
@@ -102,6 +108,7 @@ export default function App() {
   const handleSaveGame = (save: SaveData) => {
     setActiveSave(save)
     void listSaves().then(setSaves)
+    refreshStorageStatus()
   }
 
   const handlePuzzleComplete = (completedId: string) => {
@@ -109,6 +116,7 @@ export default function App() {
     // save and refresh both menu lists.
     void deleteSave(completedId).then(() => listSaves().then(setSaves))
     void listCompleted().then(setCompleted)
+    refreshStorageStatus()
     setActiveSave(null)
   }
 
@@ -135,9 +143,10 @@ export default function App() {
           onSettings={() => setScreen('settings')}
           canContinue={!!activeSave || !!puzzleConfig}
           saves={saves}
-          onSavesChange={setSaves}
+          onSavesChange={(s) => { setSaves(s); refreshStorageStatus() }}
           completed={completed}
-          onCompletedChange={setCompleted}
+          onCompletedChange={(c) => { setCompleted(c); refreshStorageStatus() }}
+          storageNearFull={storageNearFull}
         />
       )}
 

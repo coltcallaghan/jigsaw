@@ -90,6 +90,10 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **No save limit** — removed the old 5-save cap on in-progress puzzles;
+      both in-progress and completed are now bounded only by device storage. A
+      "storage almost full" banner appears (via the Storage API) when usage is
+      near quota, so users can delete puzzles instead of hitting silent failures.
 - [x] **Completed puzzles kept in the menu** — finishing a puzzle stores it in a
       separate IndexedDB store (full finished image + time taken), shown in a new
       "Completed" menu view; not subject to the 5-save in-progress trim. The

@@ -36,8 +36,6 @@ export interface CompletedPuzzle {
   completedAt: number
 }
 
-const MAX_SAVES = 5
-
 // ─── IndexedDB plumbing ──────────────────────────────────────────────────────
 //
 // Saves embed the full-resolution image data URL, which can be several MB each —
@@ -122,11 +120,10 @@ export async function getSave(id: string): Promise<SaveData | null> {
   }
 }
 
-/** Persist a save, trimming to the most recent MAX_SAVES. Returns success. */
+/** Persist an in-progress save. Unlimited — bounded only by storage quota. */
 export async function writeSave(data: SaveData): Promise<boolean> {
   try {
     await tx(STORE, 'readwrite', store => store.put(data))
-    await trimSaves()
     return true
   } catch {
     return false
@@ -156,16 +153,7 @@ export async function renameSave(id: string, name: string): Promise<SaveMeta[]> 
   return listSaves()
 }
 
-async function trimSaves(): Promise<void> {
-  const all = await tx<SaveData[]>(STORE, 'readonly', store => store.getAll() as IDBRequest<SaveData[]>)
-  if (all.length <= MAX_SAVES) return
-  const stale = all.sort((a, b) => b.updatedAt - a.updatedAt).slice(MAX_SAVES)
-  for (const save of stale) {
-    await tx(STORE, 'readwrite', store => store.delete(save.id))
-  }
-}
-
-// ─── Completed puzzles (kept indefinitely, not trimmed) ──────────────────────
+// ─── Completed puzzles ───────────────────────────────────────────────────────
 
 /** List completed puzzles, newest first. */
 export async function listCompleted(): Promise<CompletedPuzzle[]> {
@@ -191,6 +179,38 @@ export async function deleteCompleted(id: string): Promise<void> {
     await tx(COMPLETED_STORE, 'readwrite', store => store.delete(id))
   } catch {
     // best-effort
+  }
+}
+
+// ─── Storage quota ───────────────────────────────────────────────────────────
+
+export interface StorageStatus {
+  /** Bytes currently used by this origin, if known. */
+  usage: number
+  /** Total bytes available to this origin, if known. */
+  quota: number
+  /** Fraction used (0–1), or 0 when the estimate is unavailable. */
+  ratio: number
+  /** True when usage is high enough to warn the user. */
+  nearFull: boolean
+}
+
+const NEAR_FULL_RATIO = 0.9
+
+/**
+ * Best-effort estimate of how full the device's per-origin storage is, via the
+ * Storage API. Returns a benign all-zero status when unsupported (the browser
+ * still manages quota; we just can't show a precise warning).
+ */
+export async function getStorageStatus(): Promise<StorageStatus> {
+  try {
+    const est = await navigator.storage?.estimate?.()
+    const usage = est?.usage ?? 0
+    const quota = est?.quota ?? 0
+    const ratio = quota > 0 ? usage / quota : 0
+    return { usage, quota, ratio, nearFull: ratio >= NEAR_FULL_RATIO }
+  } catch {
+    return { usage: 0, quota: 0, ratio: 0, nearFull: false }
   }
 }
 

@@ -12,6 +12,7 @@ interface MainMenuProps {
   onSavesChange: (saves: SaveMeta[]) => void
   completed: CompletedPuzzle[]
   onCompletedChange: (completed: CompletedPuzzle[]) => void
+  storageNearFull: boolean
 }
 
 type View = 'main' | 'load' | 'completed'
@@ -56,7 +57,7 @@ function formatDuration(secs: number) {
   return `${secs}s`
 }
 
-export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings, canContinue, saves, onSavesChange, completed, onCompletedChange }: MainMenuProps) {
+export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings, canContinue, saves, onSavesChange, completed, onCompletedChange, storageNearFull }: MainMenuProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [view, setView] = useState<View>('main')
@@ -119,6 +120,11 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
         </div>
         <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8 }}>
           <h1 className="page-title">Saved Puzzles</h1>
+          {storageNearFull && (
+            <div className="storage-warn">
+              Device storage is almost full. Delete puzzles you no longer need to free space.
+            </div>
+          )}
           <div className="saved-list">
             {saves.length === 0 && (
               <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
@@ -192,6 +198,11 @@ export default function MainMenu({ onNewGame, onContinue, onLoadSave, onSettings
         </div>
         <div className="center-col" style={{ justifyContent: 'flex-start', paddingTop: 8 }}>
           <h1 className="page-title">Completed Puzzles</h1>
+          {storageNearFull && (
+            <div className="storage-warn">
+              Device storage is almost full. Delete puzzles you no longer need to free space.
+            </div>
+          )}
           <div className="saved-list">
             {completed.length === 0 && (
               <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
