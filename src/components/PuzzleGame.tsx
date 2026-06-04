@@ -14,6 +14,8 @@ import { AudioManager } from '../audio/AudioManager'
 
 interface PuzzleGameProps {
   config: PuzzleConfig
+  /** Existing save id when resuming, so saves/completion reuse one stable id. */
+  saveId: string | null
   savedState: PieceState[] | null
   savedElapsed: number
   settings: GameSettings
@@ -25,12 +27,16 @@ interface PuzzleGameProps {
 }
 
 export default function PuzzleGame({
-  config, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete,
+  config, saveId, savedState, savedElapsed, settings, onSettingsChange, onBackToMenu, onSave, onComplete,
 }: PuzzleGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const saveIdRef = useRef<string>(Date.now().toString())
+  // Reuse the existing id when resuming a save; otherwise mint a new one.
+  const saveIdRef = useRef<string>(saveId ?? Date.now().toString())
+  // Completion must only ever record once, even if onComplete fires twice
+  // (StrictMode remount, re-render, etc.).
+  const completedRef = useRef(false)
 
   const [placed, setPlaced] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
@@ -109,6 +115,8 @@ export default function PuzzleGame({
   }, [currentElapsed])
 
   const handleComplete = useCallback(() => {
+    if (completedRef.current) return // already recorded — guard against re-entry
+    completedRef.current = true
     setIsComplete(true)
     AudioManager.play('puzzle_complete')
     if (timerRef.current) clearInterval(timerRef.current)

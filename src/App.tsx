@@ -20,6 +20,9 @@ export default function App() {
   const [imageDataUrl, setImageDataUrl] = useState('')
   const [imageName, setImageName] = useState('')
   const [puzzleConfig, setPuzzleConfig] = useState<PuzzleConfig | null>(null)
+  // Stable id for the active puzzle, owned here so it survives PuzzleGame
+  // remounts (a new game mints one; loading a save reuses the save's id).
+  const [puzzleId, setPuzzleId] = useState<string | null>(null)
   const [activeSave, setActiveSave] = useState<SaveData | null>(null)
   const [saves, setSaves] = useState<SaveMeta[]>([])
   const [completed, setCompleted] = useState<CompletedPuzzle[]>([])
@@ -79,6 +82,7 @@ export default function App() {
     img.src = imageDataUrl
     img.onload = () => {
       setActiveSave(null)
+      setPuzzleId(Date.now().toString())
       setPuzzleConfig({
         imageDataUrl,
         imageWidth: img.naturalWidth,
@@ -100,6 +104,7 @@ export default function App() {
     const save = await getSave(id)
     if (!save) return
     setActiveSave(save)
+    setPuzzleId(save.id)
     // Backfill name for saves created before puzzles were named.
     setPuzzleConfig({ ...save.config, name: save.config.name ?? save.imageName })
     setScreen('game')
@@ -162,6 +167,7 @@ export default function App() {
       {screen === 'game' && puzzleConfig && (
         <PuzzleGame
           config={puzzleConfig}
+          saveId={puzzleId}
           savedState={activeSave?.pieces ?? null}
           savedElapsed={activeSave?.elapsed ?? 0}
           settings={settings}
