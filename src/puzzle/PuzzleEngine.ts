@@ -41,7 +41,12 @@ export interface PuzzleEngineOptions {
 
 interface EdgeStroke { color: number; width: number; alpha: number }
 
-interface PieceSprite extends Sprite {
+// A piece is a Container (Pixi v8 only allows Containers to hold children) that
+// holds the image Sprite plus the edge outline / placed-border Graphics. The
+// container's origin is the piece centre (the inner image is anchored 0.5), so
+// all the x/y/rotation positioning math is unchanged.
+interface PieceSprite extends Container {
+  image: Sprite
   pieceId: number
   pieceCol: number
   pieceRow: number
@@ -183,14 +188,17 @@ export class PuzzleEngine {
     for (const def of this.definitions) {
       const bitmap = bitmaps.get(def.id)!
       const texture = Texture.from(bitmap)
-      const sprite = new Sprite(texture) as PieceSprite
+      const sprite = new Container() as PieceSprite
+      const image = new Sprite(texture)
+      image.anchor.set(0.5)   // centre the image on the container origin
+      sprite.image = image
+      sprite.addChild(image)
       sprite.pieceId = def.id
       sprite.pieceCol = def.col
       sprite.pieceRow = def.row
       sprite.placed = false
       sprite.inTray = false
       sprite.groupId = null
-      sprite.anchor.set(0.5)
 
       // Scatter pieces in the 4 regions surrounding the board, never on top of it
       const boardW = cols * this.pieceW

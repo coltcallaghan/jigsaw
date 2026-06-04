@@ -144,6 +144,11 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **PixiJS v8 deprecation cleared** — pieces are now a `Container` holding an
+      inner image `Sprite` + edge/border `Graphics`, instead of adding children
+      to a `Sprite` (which Pixi v8 deprecates: "Only Containers will be allowed
+      to add children"). Verified no warnings/errors and pieces render + drag
+      correctly. (2026-06-04)
 - [x] **All audio committed** — 14/14 files present (`npm run check:audio`); the
       game no longer ships silent. (2026-06-04)
 - [x] **Theme-aware, zoom-adaptive piece outlines** — outlines now restyle per
