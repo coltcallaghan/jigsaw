@@ -1,34 +1,45 @@
 # Audio assets
 
-Drop royalty-free audio files here. The audio engine (`src/audio/`) loads them
-by path; **any missing file is silently skipped**, so the game runs fine with a
-partial or empty set — add files incrementally.
+The audio engine (`src/audio/`) loads these by path; **any missing file is
+silently skipped**, so the game still runs with a partial/empty set. All 14
+files are currently committed — run `npm run check:audio` to verify.
+
+The committed audio is **machine-generated, copyright-free** (see
+`scripts/gen-audio.mjs`). To regenerate: `node scripts/gen-audio.mjs` — it
+synthesizes the SFX/clicks as `.wav` and the music loops as `.wav`, then
+compresses the music to `.m4a` (AAC) via macOS `afconvert`.
 
 ## File layout (exact names matter)
 
 ```
 public/audio/
-├── sfx/
-│   ├── piece_snap.mp3        short click — piece locks into solved position
-│   ├── piece_group.mp3       lighter click — two loose pieces connect
-│   ├── piece_pickup.mp3      subtle whoosh on drag start
-│   ├── puzzle_complete.mp3   celebratory fanfare
-│   ├── tray_add.mp3          soft pop — piece stashed to tray
-│   └── tray_retrieve.mp3     soft pop — piece pulled back from tray
-└── music/
-    ├── cartoon.mp3           playful / bouncy (looping)
-    ├── modern.mp3            minimal / lo-fi (looping)
-    ├── dark.mp3              atmospheric / ambient (looping)
-    └── arcade.mp3            chiptune / 8-bit (looping)
+├── sfx/                          (.wav — tiny, uncompressed is fine)
+│   ├── piece_snap.wav            short click — piece locks into solved position
+│   ├── piece_group.wav           lighter click — two loose pieces connect
+│   ├── piece_pickup.wav          subtle whoosh on drag start
+│   ├── puzzle_complete.wav       celebratory fanfare
+│   ├── tray_add.wav              soft pop — piece stashed to tray
+│   ├── tray_retrieve.wav         soft pop — piece pulled back from tray
+│   ├── ui_click_cartoon.wav      per-theme UI click (bright two-tone)
+│   ├── ui_click_modern.wav       per-theme UI click (soft clean blip)
+│   ├── ui_click_dark.wav         per-theme UI click (low muted thunk)
+│   └── ui_click_arcade.wav       per-theme UI click (retro square blip)
+└── music/                        (.m4a — AAC, compressed; ~120–195 KB each)
+    ├── cartoon.m4a               playful / bouncy (looping)
+    ├── modern.m4a                minimal / lo-fi (looping)
+    ├── dark.m4a                  atmospheric / ambient (looping)
+    └── arcade.m4a                chiptune / 8-bit (looping)
 ```
 
-`.mp3` is assumed (broadest browser support). To use `.ogg`/`.wav`, update the
-paths in `src/audio/sounds.ts`.
+Paths are defined in `src/audio/sounds.ts`. Playback is via `HTMLAudioElement`,
+so any format the platform's `<audio>` supports works (`.m4a`/AAC and `.mp3` are
+universally supported across web / Electron / iOS / Android; `.ogg` is risky on
+iOS). To change a format, update the path in `sounds.ts` **and** the expected
+extension in `scripts/check-audio.mjs`.
 
-## Where to get them (CC0 / no-attribution only)
+## Replacing the generated audio (optional)
 
-These sources require **no attribution** and allow commercial/public use, so no
-credits file is needed:
+To swap in sourced CC0 / no-attribution audio instead of the generated set:
 
 | Type | Source | Notes |
 |------|--------|-------|
@@ -45,5 +56,5 @@ credits file is needed:
 - **arcade** → "chiptune", "8-bit", "retro game"
 
 ## Keep file sizes small
-Music loops: aim for < 1–2 MB each (trim to a clean loop, ~96–128 kbps mp3).
-SFX: < 50 KB each. These ship in the web bundle and affect load time.
+Music loops ship in the bundle — keep them compressed (`.m4a`/`.mp3`, ~96–128
+kbps; the current loops are ~120–195 KB each). SFX < 50 KB each.

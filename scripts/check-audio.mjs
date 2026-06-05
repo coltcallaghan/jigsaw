@@ -21,7 +21,8 @@ const SFX = [
 
 const UI_CLICKS = THEMES.map(t => `audio/sfx/ui_click_${t}.wav`)
 
-const MUSIC = THEMES.map(t => `audio/music/${t}.wav`)
+// Music loops are AAC (.m4a) — compressed; SFX stay .wav (tiny).
+const MUSIC = THEMES.map(t => `audio/music/${t}.m4a`)
 
 const expected = [...SFX, ...UI_CLICKS, ...MUSIC]
 const missing = expected.filter(rel => !existsSync(join(PUBLIC, rel)))

@@ -12,16 +12,18 @@ Legend: 🔴 blocks a good first release · 🟡 should-have · 🟢 nice-to-hav
 
 The audio **engine is fully wired** ([`src/audio/`](./src/audio/), see
 [`AUDIO_NOTES.md`](./AUDIO_NOTES.md)) and **all expected files are committed** —
-`npm run check:audio` reports **14/14 present** (6 SFX, 4 per-theme UI clicks,
-4 per-theme music loops), all `.wav`. The game ships with sound.
+`npm run check:audio` reports **14/14 present** (6 SFX + 4 per-theme UI clicks as
+`.wav`, 4 per-theme music loops as `.m4a`). The game ships with sound.
 
 - [x] 6 SFX in `public/audio/sfx/` (`piece_snap`, `piece_group`, `piece_pickup`,
       `puzzle_complete`, `tray_add`, `tray_retrieve`).
 - [x] 4 per-theme UI click SFX (`ui_click_{cartoon,modern,dark,arcade}`).
 - [x] 4 per-theme looping music tracks (`{cartoon,modern,dark,arcade}`).
-- [ ] **Optional:** music loops are uncompressed `.wav` (~1 MB each, ~4 MB total
-      in the bundle). Re-encoding to `.mp3`/`.ogg` would shrink the bundle a lot;
-      requires updating the paths in [`src/audio/sounds.ts`](./src/audio/sounds.ts).
+- [x] **Music compressed to AAC `.m4a`** — the 4 loops were uncompressed `.wav`
+      (~4.2 MB total); converted via `afconvert` to ~120–195 KB each, dropping
+      the audio bundle to ~800 KB (~81% smaller). `gen-audio.mjs` now
+      auto-converts on regen; verified the `.m4a` loops decode + loop via
+      `HTMLAudioElement` (the API the app uses). (2026-06-05)
 - [ ] **Optional:** manual QA of volume sliders + SFX/music toggles in
       Settings → Audio on a real device.
 - [ ] **Optional:** confirm the generated audio is the final creative choice (it

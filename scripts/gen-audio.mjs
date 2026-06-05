@@ -8,7 +8,8 @@
 // Writes 6 SFX one-shots to public/audio/sfx/ and 4 looping theme beds to
 // public/audio/music/. Re-run any time; it overwrites in place.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -281,4 +282,21 @@ write(MUSIC_DIR, 'modern', musicModern())
 write(MUSIC_DIR, 'dark', musicDark())
 write(MUSIC_DIR, 'arcade', musicArcade())
 
-console.log('\nDone. Update src/audio/sounds.ts paths to .wav (or convert to .mp3).')
+// Compress music to AAC (.m4a) so the bundle stays small — the app loads
+// audio/music/*.m4a (see src/audio/sounds.ts). SFX stay .wav (already tiny).
+// Uses macOS's built-in afconvert; if unavailable, the raw .wav is left in
+// place and you'll need to convert manually.
+console.log('\nCompressing music to .m4a (AAC):')
+for (const name of ['cartoon', 'modern', 'dark', 'arcade']) {
+  const wavPath = join(MUSIC_DIR, `${name}.wav`)
+  const m4aPath = join(MUSIC_DIR, `${name}.m4a`)
+  try {
+    execFileSync('afconvert', ['-f', 'm4af', '-d', 'aac', '-b', '128000', wavPath, m4aPath])
+    rmSync(wavPath)
+    console.log(`  ${name}.m4a`)
+  } catch {
+    console.warn(`  ! afconvert failed for ${name}; left ${name}.wav (convert manually)`)
+  }
+}
+
+console.log('\nDone.')

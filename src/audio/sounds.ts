@@ -43,8 +43,8 @@ export const UI_CLICK_SOURCES: Record<Theme, string> = {
 
 /** One looping background track per theme, to match each theme's mood. */
 export const MUSIC_SOURCES: Record<Theme, string> = {
-  cartoon: 'audio/music/cartoon.wav', // playful / bouncy
-  modern: 'audio/music/modern.wav',   // minimal / lo-fi
-  dark: 'audio/music/dark.wav',       // atmospheric / ambient
-  arcade: 'audio/music/arcade.wav',   // chiptune / 8-bit
+  cartoon: 'audio/music/cartoon.m4a', // playful / bouncy
+  modern: 'audio/music/modern.m4a',   // minimal / lo-fi
+  dark: 'audio/music/dark.m4a',       // atmospheric / ambient
+  arcade: 'audio/music/arcade.m4a',   // chiptune / 8-bit
 }
