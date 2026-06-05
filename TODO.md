@@ -94,14 +94,13 @@ Remaining (config / store, once the Steam app exists):
 - [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
-- [ ] 🔴 **GPU texture exhaustion at 10000 pieces.** Each piece gets its own
-      `Texture.from(bitmap)` → 10000 GPU surfaces, which exceeds the macOS/
-      Chromium IOSurface limit (observed `Failed to allocate IOSurface`,
-      incomplete-framebuffer errors). Fix is a **texture atlas**: pack all piece
-      bitmaps into a few large textures and frame each piece sprite to its
-      sub-rect (`renderPieceTextures` + `PuzzleEngine`), collapsing ~10000
-      surfaces → a handful. Affects the headline "10,000 pieces" feature.
-      (The Continue re-fetch fix is unrelated and already done.)
+- [x] **GPU texture exhaustion fixed via texture atlas** — pieces used to get
+      one `Texture.from(bitmap)` each (10000 GPU surfaces → IOSurface exhaustion
+      on large puzzles). `renderPieceTextures` now packs pieces into a few
+      2048² atlases (shelf-packed) and each piece sprite frames its sub-rect of a
+      shared atlas source, collapsing thousands of surfaces → a handful. Verified
+      pieces render full image content + correct positioning at 500pc, 0 GPU
+      errors. (2026-06-05) — still worth a device check at 10000.
 - [x] **Fonts bundled for offline.** All UI fonts are now self-hosted via
       `@fontsource` (imported in `src/fonts.ts`, latin subset only) and the
       Google Fonts CDN `<link>`s are removed from `index.html`. Verified: the

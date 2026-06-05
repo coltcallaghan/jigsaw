@@ -94,6 +94,11 @@ export function generatePieces(config: PuzzleConfig): PieceDefinition[] {
 // ─── SVG path helpers ────────────────────────────────────────────────────────
 
 const TAB_SIZE = 0.35  // tab bump as fraction of edge length
+
+/** Padding drawn around a piece body so its tabs aren't clipped (atlas + engine). */
+export function piecePadding(srcW: number, srcH: number): number {
+  return Math.max(srcW, srcH) * TAB_SIZE * 1.5
+}
 const TAB_NECK = 0.28  // neck width as fraction of edge length
 
 /**
@@ -175,54 +180,104 @@ function edgePath(
   ].join(' ')
 }
 
+/** A piece's location within an atlas image (in atlas pixels). */
+export interface PieceFrame {
+  atlas: number   // index into PieceAtlasResult.atlases
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface PieceAtlasResult {
+  atlases: ImageBitmap[]
+  frames: Map<number, PieceFrame>
+}
+
+// Cap each atlas at a conservatively-safe GPU texture size. 2048 is supported
+// essentially everywhere (incl. older mobile GPUs); a handful of these replaces
+// thousands of individual textures, avoiding IOSurface/texture exhaustion on
+// large (5k/10k-piece) puzzles.
+const ATLAS_MAX = 2048
+// Gap between packed cells so neighbouring pieces never bleed across frames
+// when the GPU samples with bilinear filtering.
+const ATLAS_GAP = 2
+
 /**
- * Render all pieces onto individual offscreen canvases.
- * Returns a Map from pieceId -> ImageBitmap (GPU-uploadable texture source).
+ * Render every piece and pack them into one or more texture atlases.
  *
- * We over-draw by TAB_SIZE on each side so tabs don't get clipped.
+ * Each piece is drawn (clipped to its jigsaw path, over-drawn by TAB_SIZE so
+ * tabs aren't clipped) into a cell of a large shared canvas. The engine then
+ * creates ONE GPU texture per atlas and frames each piece sprite to its cell —
+ * so a 10,000-piece puzzle uses a few textures instead of 10,000.
+ *
+ * Pieces in a puzzle are all ~the same size, so a simple shelf/row packer is
+ * both adequate and tight.
  */
 export async function renderPieceTextures(
   image: HTMLImageElement,
   pieces: PieceDefinition[]
-): Promise<Map<number, ImageBitmap>> {
-  const result = new Map<number, ImageBitmap>()
+): Promise<PieceAtlasResult> {
+  const frames = new Map<number, PieceFrame>()
+  const atlases: ImageBitmap[] = []
 
-  await Promise.all(
-    pieces.map(async (piece) => {
+  if (pieces.length === 0) return { atlases, frames }
+
+  // Cell size: pieces share dimensions, but near image edges the padding is
+  // clamped, so derive a uniform cell from the max padded extent. Cap the cell
+  // so a single piece always fits within an atlas.
+  const cellOf = (p: PieceDefinition) => {
+    const pad = piecePadding(p.srcW, p.srcH)
+    return { w: Math.ceil(p.srcW + pad * 2), h: Math.ceil(p.srcH + pad * 2), pad }
+  }
+  const cellW = Math.min(ATLAS_MAX, Math.max(...pieces.map(p => cellOf(p).w)))
+  const cellH = Math.min(ATLAS_MAX, Math.max(...pieces.map(p => cellOf(p).h)))
+
+  const colsPerAtlas = Math.max(1, Math.floor(ATLAS_MAX / (cellW + ATLAS_GAP)))
+  const rowsPerAtlas = Math.max(1, Math.floor(ATLAS_MAX / (cellH + ATLAS_GAP)))
+  const cellsPerAtlas = colsPerAtlas * rowsPerAtlas
+
+  // Draw the pieces destined for one atlas onto its canvas, recording frames.
+  const buildAtlas = async (slice: PieceDefinition[], atlasIndex: number) => {
+    const usedRows = Math.ceil(slice.length / colsPerAtlas)
+    const atlasW = Math.min(ATLAS_MAX, colsPerAtlas * (cellW + ATLAS_GAP))
+    const atlasH = Math.min(ATLAS_MAX, Math.max(1, usedRows) * (cellH + ATLAS_GAP))
+    const canvas = new OffscreenCanvas(atlasW, atlasH)
+    const ctx = canvas.getContext('2d')!
+
+    slice.forEach((piece, i) => {
       const { srcX, srcY, srcW, srcH, edges } = piece
-      // Pad must cover the full tab extent: TAB_SIZE * max(edge length)
-      const pad = Math.max(srcW, srcH) * TAB_SIZE * 1.5
-
-      const canvasW = srcW + pad * 2
-      const canvasH = srcH + pad * 2
-
-      const canvas = new OffscreenCanvas(Math.ceil(canvasW), Math.ceil(canvasH))
-      const ctx = canvas.getContext('2d')!
-
-      const path = new Path2D(buildPiecePath(edges, srcW, srcH))
+      const { pad } = cellOf(piece)
+      const col = i % colsPerAtlas
+      const row = Math.floor(i / colsPerAtlas)
+      const cellX = col * (cellW + ATLAS_GAP)
+      const cellY = row * (cellH + ATLAS_GAP)
 
       ctx.save()
-      ctx.translate(pad, pad)
-      ctx.clip(path)
+      // Origin at the cell, then the same pad translate + clip as before.
+      ctx.translate(cellX + pad, cellY + pad)
+      ctx.clip(new Path2D(buildPiecePath(edges, srcW, srcH)))
 
-      // Draw a region of the source image that covers the piece body AND its tabs.
-      // Image pixel (srcX, srcY) must land at translated origin (0, 0), so we
-      // draw from image offset (-srcX, -srcY) which covers the full tab area.
       const imgSrcX = Math.max(0, srcX - pad)
       const imgSrcY = Math.max(0, srcY - pad)
       const imgSrcW = Math.min(srcW + pad * 2, image.naturalWidth - imgSrcX)
       const imgSrcH = Math.min(srcH + pad * 2, image.naturalHeight - imgSrcY)
-      const dstX = imgSrcX - srcX   // ≈ -pad (or clamped when near image edge)
+      const dstX = imgSrcX - srcX
       const dstY = imgSrcY - srcY
-
       ctx.drawImage(image, imgSrcX, imgSrcY, imgSrcW, imgSrcH, dstX, dstY, imgSrcW, imgSrcH)
-
       ctx.restore()
 
-      const bitmap = await createImageBitmap(canvas)
-      result.set(piece.id, bitmap)
+      frames.set(piece.id, { atlas: atlasIndex, x: cellX, y: cellY, w: cellW, h: cellH })
     })
-  )
 
-  return result
+    atlases[atlasIndex] = await createImageBitmap(canvas)
+  }
+
+  const slices: PieceDefinition[][] = []
+  for (let i = 0; i < pieces.length; i += cellsPerAtlas) {
+    slices.push(pieces.slice(i, i + cellsPerAtlas))
+  }
+  await Promise.all(slices.map((slice, idx) => buildAtlas(slice, idx)))
+
+  return { atlases, frames }
 }

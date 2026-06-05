@@ -3,12 +3,13 @@ import {
   Container,
   Graphics,
   Polygon,
+  Rectangle,
   Sprite,
   Texture,
   FederatedPointerEvent,
 } from 'pixi.js'
 import type { PieceDefinition, PuzzleConfig } from './types'
-import { buildPiecePath, computeGrid, generatePieces, renderPieceTextures } from './generator'
+import { buildPiecePath, computeGrid, generatePieces, piecePadding, renderPieceTextures } from './generator'
 import type { PieceState } from '../utils/saveGame'
 import type { Theme } from '../hooks/useSettings'
 import { AudioManager } from '../audio/AudioManager'
@@ -171,8 +172,13 @@ export class PuzzleEngine {
     img.src = config.imageDataUrl
     await new Promise<void>((resolve) => { img.onload = () => resolve() })
 
-    // Render textures
-    const bitmaps = await renderPieceTextures(img, this.definitions)
+    // Render piece images packed into a few texture atlases (instead of one
+    // GPU texture per piece — which exhausts GPU surfaces on 5k/10k puzzles).
+    const { atlases, frames } = await renderPieceTextures(img, this.definitions)
+    // One shared GPU texture source per atlas. Texture.from auto-creates an
+    // ImageSource that actually uploads the ImageBitmap; we then frame sub-rects
+    // of its .source for each piece.
+    const atlasSources = atlases.map(bitmap => Texture.from(bitmap).source)
 
     // Set up board container with initial centering
     this.board.addChild(this.ghostLayer)
@@ -186,11 +192,22 @@ export class PuzzleEngine {
 
     // Build all piece sprites
     for (const def of this.definitions) {
-      const bitmap = bitmaps.get(def.id)!
-      const texture = Texture.from(bitmap)
+      const frame = frames.get(def.id)!
+      // A Texture framed to this piece's cell within its shared atlas source.
+      const texture = new Texture({
+        source: atlasSources[frame.atlas],
+        frame: new Rectangle(frame.x, frame.y, frame.w, frame.h),
+      })
       const sprite = new Container() as PieceSprite
       const image = new Sprite(texture)
-      image.anchor.set(0.5)   // centre the image on the container origin
+      // The piece body sits at (pad, pad) within the cell; anchor so the body
+      // CENTRE lands on the container origin (cells can be larger than a given
+      // piece's padded size near image edges, so anchor per-piece, not 0.5).
+      const bodyPad = piecePadding(def.srcW, def.srcH)
+      image.anchor.set(
+        (bodyPad + def.srcW / 2) / frame.w,
+        (bodyPad + def.srcH / 2) / frame.h,
+      )
       sprite.image = image
       sprite.addChild(image)
       sprite.pieceId = def.id
