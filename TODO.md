@@ -40,10 +40,11 @@ state with a way back to Accept — no doom loop.
       `privacy.html` + `terms.html` from the SAME `src/legal/content.ts` (single
       source of truth; runs automatically in `npm run build:web`, also
       `npm run gen:legal`). Output lands in `dist-web/`.
-- [ ] **Enable GitHub Pages** to serve the web build (Settings → Pages). Until
-      the app stores are live the plan is to host the game itself there too. URLs
-      will be `https://coltcallaghan.github.io/jigsaw/privacy.html` and
-      `…/terms.html` — paste those into the App Store / Play / Steam listings.
+- [x] **GitHub Pages live** — auto-deploys the web build on every push to `main`
+      (`.github/workflows/deploy.yml`). Game + policy pages are served at
+      `https://coltcallaghan.github.io/jigsaw/`,
+      `…/privacy.html`, `…/terms.html` (verified 200). Paste the policy URLs into
+      the App Store / Play / Steam listings.
 - [ ] Bump `POLICY_VERSION` on material changes to re-prompt existing users
       (regenerates the hosted pages on next `build:web` automatically).
 
