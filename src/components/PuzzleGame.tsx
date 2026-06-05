@@ -49,6 +49,58 @@ export default function PuzzleGame({
   const [trayPieceIds, setTrayPieceIds] = useState<number[]>([])
   const [showTray, setShowTray] = useState(true)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
+
+  // Desktop-only: drag the tray's left edge to resize it. Width is clamped and
+  // persisted so it survives reloads. (Touch uses a horizontal strip layout
+  // where width isn't the relevant axis, so the handle is hidden there.)
+  const TRAY_MIN = 180
+  const TRAY_MAX = 560
+  const [trayWidth, setTrayWidth] = useState<number>(() => {
+    const saved = parseInt(localStorage.getItem('jigsaw_tray_w') ?? '', 10)
+    return Number.isFinite(saved) ? Math.min(TRAY_MAX, Math.max(TRAY_MIN, saved)) : 220
+  })
+  const trayResizeRef = useRef<{ startX: number; startW: number } | null>(null)
+  // True while the tray edge is being dragged — the board's ResizeObserver
+  // skips resizing the WebGL renderer during the drag (continuous mid-drag
+  // resizes flash the canvas black); one resize is applied when the drag ends.
+  const trayDraggingRef = useRef(false)
+
+  // Tray piece-size slider → grid column count (more columns = smaller pieces).
+  const TRAY_COLS_MIN = 1
+  const TRAY_COLS_MAX = 6
+  const [trayColumns, setTrayColumns] = useState<number>(() => {
+    const saved = parseInt(localStorage.getItem('jigsaw_tray_cols') ?? '', 10)
+    return Number.isFinite(saved) ? Math.min(TRAY_COLS_MAX, Math.max(TRAY_COLS_MIN, saved)) : 2
+  })
+  const handleTrayColumns = (n: number) => {
+    const v = Math.min(TRAY_COLS_MAX, Math.max(TRAY_COLS_MIN, n))
+    setTrayColumns(v)
+    localStorage.setItem('jigsaw_tray_cols', String(v))
+  }
+
+  const onTrayResizeDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    trayResizeRef.current = { startX: e.clientX, startW: trayWidth }
+    trayDraggingRef.current = true   // pause board WebGL resizes during the drag
+  }
+  const onTrayResizeMove = (e: React.PointerEvent) => {
+    const drag = trayResizeRef.current
+    if (!drag) return
+    // Dragging left (smaller clientX) widens the tray (it's anchored right).
+    const next = Math.min(TRAY_MAX, Math.max(TRAY_MIN, drag.startW + (drag.startX - e.clientX)))
+    setTrayWidth(next)
+  }
+  const onTrayResizeUp = (e: React.PointerEvent) => {
+    if (!trayResizeRef.current) return
+    trayResizeRef.current = null
+    trayDraggingRef.current = false
+    ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+    localStorage.setItem('jigsaw_tray_w', String(trayWidth))
+    // Apply the final board size once, now that the drag has settled.
+    const el = containerRef.current
+    if (el) engineRef.current?.resize(el.clientWidth, el.clientHeight)
+  }
   const [showGhostSlider, setShowGhostSlider] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [elapsed, setElapsed] = useState(savedElapsed)
@@ -197,12 +249,23 @@ export default function PuzzleGame({
     })
     engineRef.current = engine
 
+    // Coalesce resize bursts (e.g. while dragging the tray edge) into one
+    // resize per animation frame. Resizing the WebGL renderer synchronously on
+    // every ResizeObserver tick caused the board to flash black mid-drag.
+    let resizeRaf = 0
     const resizeObs = new ResizeObserver(() => {
-      if (containerRef.current) engine.resize(containerRef.current.clientWidth, containerRef.current.clientHeight)
+      if (trayDraggingRef.current) return  // settle resize until the drag ends
+      if (resizeRaf) return
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0
+        const el = containerRef.current
+        if (el) engine.resize(el.clientWidth, el.clientHeight)
+      })
     })
     if (containerRef.current) resizeObs.observe(containerRef.current)
 
     return () => {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf)
       resizeObs.disconnect()
       if (timerRef.current) clearInterval(timerRef.current)
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
@@ -366,7 +429,20 @@ export default function PuzzleGame({
         </div>
 
         {showTray && (
-          <div className={`tray${trayCollapsed ? ' tray-collapsed' : ''}`}>
+          <div
+            className={`tray${trayCollapsed ? ' tray-collapsed' : ''}`}
+            style={{ ['--tray-w' as string]: `${trayWidth}px` }}
+          >
+            <div
+              className="tray-resize"
+              onPointerDown={onTrayResizeDown}
+              onPointerMove={onTrayResizeMove}
+              onPointerUp={onTrayResizeUp}
+              onPointerCancel={onTrayResizeUp}
+              title="Drag to resize tray"
+              role="separator"
+              aria-orientation="vertical"
+            />
             <button
               className="tray-head"
               onClick={() => setTrayCollapsed(v => !v)}
@@ -379,15 +455,33 @@ export default function PuzzleGame({
               </span>
             </button>
             {!trayCollapsed && (
-              <PieceTray
-                pieceIds={trayPieceIds}
-                pieces={pieceDefs}
-                imageDataUrl={config.imageDataUrl}
-                imageWidth={config.imageWidth}
-                imageHeight={config.imageHeight}
-                theme={settings.theme}
-                onRetrieve={handleRetrieve}
-              />
+              <>
+                <div className="tray-size" title="Piece size in the tray">
+                  <span className="tray-size-icon" aria-hidden>▣</span>
+                  <input
+                    className="rng tray-size-rng"
+                    type="range"
+                    min={TRAY_COLS_MIN}
+                    max={TRAY_COLS_MAX}
+                    step={1}
+                    /* Invert so dragging RIGHT makes pieces BIGGER (fewer columns). */
+                    value={TRAY_COLS_MAX + TRAY_COLS_MIN - trayColumns}
+                    onChange={(e) => handleTrayColumns(TRAY_COLS_MAX + TRAY_COLS_MIN - parseInt(e.target.value, 10))}
+                    aria-label="Tray piece size"
+                  />
+                  <span className="tray-size-icon tray-size-icon-lg" aria-hidden>▣</span>
+                </div>
+                <PieceTray
+                  pieceIds={trayPieceIds}
+                  pieces={pieceDefs}
+                  imageDataUrl={config.imageDataUrl}
+                  imageWidth={config.imageWidth}
+                  imageHeight={config.imageHeight}
+                  theme={settings.theme}
+                  columns={trayColumns}
+                  onRetrieve={handleRetrieve}
+                />
+              </>
             )}
           </div>
         )}

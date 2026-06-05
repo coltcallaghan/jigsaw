@@ -128,7 +128,23 @@ export default function App() {
     }
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    // Re-fetch the save fresh from IndexedDB (same path as Load Saved) rather
+    // than trusting the in-memory autosave snapshot — the persisted copy is the
+    // source of truth and is always complete. Falls back to in-memory state if
+    // the row is somehow missing.
+    const id = puzzleId ?? activeSave?.id ?? null
+    if (id) {
+      const save = await getSave(id)
+      if (save) {
+        setActiveSave(save)
+        setPuzzleFinished(false)
+        setPuzzleId(save.id)
+        setPuzzleConfig({ ...save.config, name: save.config.name ?? save.imageName })
+        setScreen('game')
+        return
+      }
+    }
     if (activeSave) { setPuzzleConfig(activeSave.config); setScreen('game') }
     else if (puzzleConfig) setScreen('game')
   }

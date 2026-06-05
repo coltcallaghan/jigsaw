@@ -1047,7 +1047,14 @@ export class PuzzleEngine {
 
   resize(width: number, height: number) {
     if (!this.appInitialized) return
-    this.app.renderer.resize(width, height)
+    // Ignore degenerate / unchanged sizes. Resizing the WebGL renderer to a
+    // zero (or sub-1px) dimension yields an incomplete framebuffer that renders
+    // a black frame — the "flash black" seen while dragging the tray edge.
+    const w = Math.floor(width)
+    const h = Math.floor(height)
+    if (w < 1 || h < 1) return
+    if (w === Math.floor(this.app.screen.width) && h === Math.floor(this.app.screen.height)) return
+    this.app.renderer.resize(w, h)
     this.app.stage.hitArea = this.app.screen
   }
 

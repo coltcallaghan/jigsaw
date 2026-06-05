@@ -408,7 +408,20 @@ input[type=range].rng::-moz-range-thumb {
 .tray {
   width: var(--tray-w); flex: none; background: var(--surface);
   border-left: var(--border-w) solid var(--ink); display: flex; flex-direction: column; z-index: 18;
+  position: relative;
 }
+/* Desktop-only drag handle on the tray's left edge to resize it. */
+.tray-resize {
+  position: absolute; top: 0; left: -3px; width: 8px; height: 100%;
+  cursor: ew-resize; z-index: 20; touch-action: none;
+  background: transparent;
+}
+.tray-resize:hover, .tray-resize:active {
+  background: linear-gradient(to right, transparent, var(--primary) 40%, var(--primary) 60%, transparent);
+  opacity: .6;
+}
+/* Touch devices use the strip/sheet layout — no width handle. */
+@media (pointer: coarse) { .tray-resize { display: none; } }
 .tray-head {
   padding: 12px 14px; font-family: var(--font-head); letter-spacing: .14em;
   text-transform: uppercase; font-size: .74rem; color: var(--text-dim);
@@ -425,6 +438,15 @@ input[type=range].rng::-moz-range-thumb {
 .tray-collapsed { height: auto; }
 .tray-collapsed .tray-head { border-bottom: none; }
 .app[data-theme="arcade"] .tray-head { font-size: .52rem; }
+/* Desktop tray piece-size slider (controls grid column count). */
+.tray-size {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: var(--border-w) solid var(--ink);
+}
+.tray-size .tray-size-rng { flex: 1; min-width: 0; }
+.tray-size-icon { color: var(--text-dim); font-size: .7rem; line-height: 1; }
+.tray-size-icon-lg { font-size: 1.05rem; }
+@media (pointer: coarse) { .tray-size { display: none; } }
 .tray-body {
   flex: 1; overflow-y: auto; padding: 10px;
 }
@@ -615,6 +637,8 @@ input[type=range].rng::-moz-range-thumb {
     padding-bottom: env(safe-area-inset-bottom, 0);
     overflow: hidden;
   }
+  /* Width-resize + size slider don't apply to the bottom-sheet layout. */
+  .tray-resize, .tray-size { display: none; }
   /* Horizontal strip of pieces; slots sized to the row height so each
      piece shows in full (square), and the row scrolls sideways. */
   .tray-body {

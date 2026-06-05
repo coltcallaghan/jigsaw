@@ -10,6 +10,8 @@ interface PieceTrayProps {
   imageWidth: number
   imageHeight: number
   theme: Theme
+  /** Desktop grid column count (driven by the tray piece-size slider). */
+  columns?: number
   onRetrieve: (id: number) => void
 }
 
@@ -58,7 +60,7 @@ function PieceSlot({
   )
 }
 
-export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, imageHeight, theme, onRetrieve }: PieceTrayProps) {
+export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, imageHeight, theme, columns = 2, onRetrieve }: PieceTrayProps) {
   const defMap = React.useMemo(() => {
     const m = new Map<number, PieceDefinition>()
     for (const p of pieces) m.set(p.id, p)
@@ -137,7 +139,7 @@ export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, 
       </div>
     )
   } else {
-    const cols = 2
+    const cols = Math.max(1, Math.round(columns))
     const slot = Math.max(1, (inner - GAP * (cols - 1)) / cols)
     const stride = slot + GAP
     const rows = Math.ceil(count / cols)
@@ -149,7 +151,7 @@ export default function PieceTray({ pieceIds, pieces, imageDataUrl, imageWidth, 
     const slice = pieceIds.slice(firstRow * cols, lastRow * cols)
     body = (
       <div style={{ height: total, position: 'relative' }}>
-        <div className="tray-grid" style={{ position: 'absolute', top: lead, left: 0, right: 0 }}>
+        <div className="tray-grid" style={{ position: 'absolute', top: lead, left: 0, right: 0, gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
           {slice.map(id => {
             const def = defMap.get(id)
             return def ? (

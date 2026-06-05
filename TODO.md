@@ -94,6 +94,14 @@ Remaining (config / store, once the Steam app exists):
 - [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
+- [ ] 🔴 **GPU texture exhaustion at 10000 pieces.** Each piece gets its own
+      `Texture.from(bitmap)` → 10000 GPU surfaces, which exceeds the macOS/
+      Chromium IOSurface limit (observed `Failed to allocate IOSurface`,
+      incomplete-framebuffer errors). Fix is a **texture atlas**: pack all piece
+      bitmaps into a few large textures and frame each piece sprite to its
+      sub-rect (`renderPieceTextures` + `PuzzleEngine`), collapsing ~10000
+      surfaces → a handful. Affects the headline "10,000 pieces" feature.
+      (The Continue re-fetch fix is unrelated and already done.)
 - [x] **Fonts bundled for offline.** All UI fonts are now self-hosted via
       `@fontsource` (imported in `src/fonts.ts`, latin subset only) and the
       Google Fonts CDN `<link>`s are removed from `index.html`. Verified: the
@@ -145,6 +153,19 @@ Remaining (config / store, once the Steam app exists):
 
 ## Recently fixed
 
+- [x] **Resizable tray + piece-size slider (desktop)** — drag the tray's left
+      edge to resize it (width clamped 180–560px, persisted); a slider sets the
+      grid column count 1–6 (bigger ↔ smaller pieces, persisted). Both hidden on
+      touch (bottom-sheet layout). (2026-06-05)
+- [x] **Fixed board flashing black while resizing the tray** — the board's
+      `ResizeObserver` resized the WebGL renderer on every pointermove (and
+      occasionally to a zero size → incomplete framebuffer → black frame). Now:
+      resizes are coalesced to one per animation frame, skipped entirely during
+      an active tray drag (one clean resize on release), and `engine.resize()`
+      ignores zero/unchanged dimensions. (2026-06-05)
+- [x] **Continue now re-fetches the save from IndexedDB** (same path as Load
+      Saved) instead of trusting the in-memory autosave snapshot, so Continue and
+      Load behave identically. (2026-06-05)
 - [x] **PixiJS v8 deprecation cleared** — pieces are now a `Container` holding an
       inner image `Sprite` + edge/border `Graphics`, instead of adding children
       to a `Sprite` (which Pixi v8 deprecates: "Only Containers will be allowed
