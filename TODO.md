@@ -8,7 +8,7 @@ Legend: 🔴 blocks a good first release · 🟡 should-have · 🟢 nice-to-hav
 
 ---
 
-## Audio 🟢 (DONE — all 14 files committed; optional polish remains)
+## Audio ✅ (DONE — signed off 2026-06-06)
 
 The audio **engine is fully wired** ([`src/audio/`](./src/audio/), see
 [`AUDIO_NOTES.md`](./AUDIO_NOTES.md)) and **all expected files are committed** —
@@ -24,10 +24,9 @@ The audio **engine is fully wired** ([`src/audio/`](./src/audio/), see
       the audio bundle to ~800 KB (~81% smaller). `gen-audio.mjs` now
       auto-converts on regen; verified the `.m4a` loops decode + loop via
       `HTMLAudioElement` (the API the app uses). (2026-06-05)
-- [ ] **Optional:** manual QA of volume sliders + SFX/music toggles in
-      Settings → Audio on a real device.
-- [ ] **Optional:** confirm the generated audio is the final creative choice (it
-      was machine-generated copyright-free; swap for sourced CC0 if preferred).
+- [x] Volume sliders + SFX/music toggles behave correctly (signed off 2026-06-06).
+- [x] Generated machine-made copyright-free audio confirmed as the final choice
+      (signed off 2026-06-06).
 
 ## Legal / consent 🔴 (code DONE — needs review + hosted URL)
 
