@@ -79,8 +79,15 @@ function tx<T>(
       new Promise<T>((resolve, reject) => {
         const transaction = db.transaction(storeName, mode)
         const req = fn(transaction.objectStore(storeName))
-        req.onsuccess = () => resolve(req.result)
+        let result: T
+        req.onsuccess = () => { result = req.result }
         req.onerror = () => reject(req.error)
+        // Resolve on the TRANSACTION completing, not just the request: a request
+        // can succeed while the transaction later aborts (e.g. quota exceeded
+        // mid-flush on a large 5k/10k save). Waiting for oncomplete means a
+        // resolved write is genuinely durable. Reads complete just as quickly.
+        transaction.oncomplete = () => resolve(result)
+        transaction.onabort = () => reject(transaction.error)
       })
   )
 }
