@@ -36,6 +36,10 @@ export default function PuzzleGame({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<PuzzleEngine | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  // The tray panel element — hit-tested so a board piece released over it stashes.
+  const trayRef = useRef<HTMLDivElement>(null)
+  // Set by PieceTray: maps a client point → tray insertion index (or null).
+  const trayDropHitTestRef = useRef<((x: number, y: number) => number | null) | null>(null)
   // Reuse the existing id when resuming a save; otherwise mint a new one.
   const saveIdRef = useRef<string>(saveId ?? Date.now().toString())
   // Completion must only ever record once, even if onComplete fires twice
@@ -49,6 +53,8 @@ export default function PuzzleGame({
   const [trayPieceIds, setTrayPieceIds] = useState<number[]>([])
   const [showTray, setShowTray] = useState(true)
   const [trayCollapsed, setTrayCollapsed] = useState(false)
+  // Live insertion index while dragging a board piece toward the tray (null = none).
+  const [trayHoverIndex, setTrayHoverIndex] = useState<number | null>(null)
 
   // Desktop-only: drag the tray's left edge to resize it. Width is clamped and
   // persisted so it survives reloads. (Touch uses a horizontal strip layout
@@ -230,6 +236,20 @@ export default function PuzzleGame({
       },
       onComplete: handleComplete,
       onTrayUpdate: (ids) => setTrayPieceIds(ids),
+      // Returns the tray insertion index for a client point, or null if the
+      // point isn't over the tray (→ the engine snaps the piece on the board).
+      trayDropIndex: (clientX, clientY) => {
+        const hit = trayDropHitTestRef.current
+        if (hit) return hit(clientX, clientY)
+        // Fallback: no hit-test registered yet — treat anywhere over the tray
+        // panel as an append (index null → push).
+        const el = trayRef.current
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        const over = clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom
+        return over ? Number.MAX_SAFE_INTEGER : null
+      },
+      onTrayHover: (index) => setTrayHoverIndex(index),
       onReady: () => {
         engine.setGhostOpacity(INITIAL_GHOST)
         engine.setSnapSensitivity(snapFraction(settings.snapSensitivity))
@@ -302,6 +322,12 @@ export default function PuzzleGame({
 
   const handleRetrieve = (id: number) => {
     engineRef.current?.retrieveFromTray(id)
+  }
+
+  // Drag a piece straight out of the tray onto the board. Returns true if it
+  // landed on the canvas (consumed); false leaves it stashed in the tray.
+  const handleTrayDrop = (id: number, clientX: number, clientY: number): boolean => {
+    return engineRef.current?.dropFromTray(id, clientX, clientY) ?? false
   }
 
   const handleBackToMenu = async () => {
@@ -430,6 +456,7 @@ export default function PuzzleGame({
 
         {showTray && (
           <div
+            ref={trayRef}
             className={`tray${trayCollapsed ? ' tray-collapsed' : ''}`}
             style={{ ['--tray-w' as string]: `${trayWidth}px` }}
           >
@@ -480,6 +507,9 @@ export default function PuzzleGame({
                   theme={settings.theme}
                   columns={trayColumns}
                   onRetrieve={handleRetrieve}
+                  onDropToBoard={handleTrayDrop}
+                  registerDropHitTest={fn => { trayDropHitTestRef.current = fn }}
+                  dropIndicatorIndex={trayHoverIndex}
                 />
               </>
             )}

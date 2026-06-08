@@ -3,6 +3,7 @@ import {
   Container,
   Graphics,
   Polygon,
+  Point,
   Rectangle,
   Sprite,
   Texture,
@@ -38,6 +39,18 @@ export interface PuzzleEngineOptions {
   onComplete: () => void
   onTrayUpdate: (pieceIds: number[]) => void
   onReady: () => void
+  /**
+   * For board→tray stashing: maps a client point to the tray insertion index,
+   * or null when the point isn't over the tray. The piece is inserted at that
+   * index (so it lands where you dropped it), not just appended.
+   */
+  trayDropIndex?: (clientX: number, clientY: number) => number | null
+  /**
+   * Live drop-target feedback during a board→tray drag: the index the piece
+   * would land at, or null when the cursor isn't over the tray. Drives the
+   * insertion marker the tray draws. Cleared (null) when the drag ends.
+   */
+  onTrayHover?: (index: number | null) => void
 }
 
 interface EdgeStroke { color: number; width: number; alpha: number }
@@ -58,6 +71,7 @@ interface PieceSprite extends Container {
 
 export class PuzzleEngine {
   private app: Application
+  private canvas!: HTMLCanvasElement   // the mounted <canvas>, for screen↔world coords
   private board: Container        // the pan/zoom container
   private piecesLayer: Container  // pieces live here
   private ghostLayer: Container   // ghost image overlay
@@ -75,12 +89,17 @@ export class PuzzleEngine {
   private dragging: PieceSprite | null = null
   private dragOffX = 0
   private dragOffY = 0
+  private boardDragUp: ((ev: PointerEvent) => void) | null = null
+  private boardDragMove: ((ev: PointerEvent) => void) | null = null
 
   private placedCount = 0
   private onProgress: (placed: number, total: number) => void
   private onComplete: () => void
   private onTrayUpdate: (pieceIds: number[]) => void
   private onReady: () => void
+  private trayDropIndex?: (clientX: number, clientY: number) => number | null
+  private onTrayHover?: (index: number | null) => void
+  private lastTrayHover: number | null = null
   private theme: Theme = 'dark'
   private outlines = true
 
@@ -122,6 +141,8 @@ export class PuzzleEngine {
     this.onComplete = opts.onComplete
     this.onTrayUpdate = opts.onTrayUpdate
     this.onReady = opts.onReady
+    this.trayDropIndex = opts.trayDropIndex
+    this.onTrayHover = opts.onTrayHover
     this.theme = opts.theme
     this.outlines = opts.outlines
 
@@ -134,6 +155,7 @@ export class PuzzleEngine {
   }
 
   private async init(canvas: HTMLCanvasElement, config: PuzzleConfig) {
+    this.canvas = canvas
     if (this.destroyed) return
     this.config = config
 
@@ -312,6 +334,12 @@ export class PuzzleEngine {
     sprite.cursor = 'grabbing'
     AudioManager.play('piece_pickup')
 
+    // Pixi only sees pointer events over the canvas, so a release OVER the tray
+    // (a sibling DOM element) never reaches the stage. Listen on window for the
+    // release that ends THIS drag, and hit-test the tray there — that's what
+    // makes board→tray stashing work. Removed when the drag ends.
+    this.armBoardDragWatch(e.pointerId)
+
     // Arm long-press-to-stash — touch/pen only. On a mouse, holding the button
     // while deciding where to move a piece must NOT stash it (right-click does).
     if (e.pointerType === 'touch' || e.pointerType === 'pen') {
@@ -374,30 +402,40 @@ export class PuzzleEngine {
         this.cancelLongPress()
       }
 
-      const local = this.piecesLayer.toLocal(e.global)
-      const dx = local.x - this.dragOffX - this.dragging.x
-      const dy = local.y - this.dragOffY - this.dragging.y
-
-      this.dragging.x = local.x - this.dragOffX
-      this.dragging.y = local.y - this.dragOffY
-      this.dragging.rotation = 0  // snap rotation when dragging
-
-      // Move the whole group if connected
-      if (this.dragging.groupId !== null) {
-        const group = this.groups.get(this.dragging.groupId)
-        if (group) {
-          group.forEach((id) => {
-            const s = this.pieces.get(id)
-            if (s && s !== this.dragging) {
-              s.x += dx
-              s.y += dy
-            }
-          })
-        }
-      }
+      this.moveDraggingTo(e.global)
     } else if (this.isPanning) {
       this.board.x = this.boardStartX + (e.globalX - this.panStartX)
       this.board.y = this.boardStartY + (e.globalY - this.panStartY)
+    }
+  }
+
+  /**
+   * Move the dragged piece (and its group) so the grabbed point sits under the
+   * given canvas-relative point. Shared by Pixi's on-canvas move handler and the
+   * window-level watcher that keeps the piece tracking once the cursor crosses
+   * off the canvas toward the tray.
+   */
+  private moveDraggingTo(globalPoint: { x: number; y: number }) {
+    if (!this.dragging) return
+    const local = this.piecesLayer.toLocal(globalPoint)
+    const dx = local.x - this.dragOffX - this.dragging.x
+    const dy = local.y - this.dragOffY - this.dragging.y
+
+    this.dragging.x = local.x - this.dragOffX
+    this.dragging.y = local.y - this.dragOffY
+    this.dragging.rotation = 0  // snap rotation when dragging
+
+    if (this.dragging.groupId !== null) {
+      const group = this.groups.get(this.dragging.groupId)
+      if (group) {
+        group.forEach((id) => {
+          const s = this.pieces.get(id)
+          if (s && s !== this.dragging) {
+            s.x += dx
+            s.y += dy
+          }
+        })
+      }
     }
   }
 
@@ -406,7 +444,11 @@ export class PuzzleEngine {
 
     this.cancelLongPress()
 
-    if (this.dragging) {
+    // A board piece drag is ended by the window-level watcher (armBoardDragWatch),
+    // which decides snap-vs-stash with real client coords. Don't double-handle it
+    // here — just clear pan state. (The watcher always fires; window pointerup is
+    // guaranteed even when the release lands off-canvas over the tray.)
+    if (this.dragging && !this.boardDragUp) {
       this.dragging.cursor = 'grab'
       this.trySnap(this.dragging)
       this.dragging = null
@@ -417,6 +459,95 @@ export class PuzzleEngine {
     if (this.isPinching && this.activePointers.size < 2) {
       this.isPinching = false
     }
+  }
+
+  /**
+   * Watch window for the pointerup that ends the current board drag. If it lands
+   * over the tray, stash the piece(s) instead of snapping; otherwise let the
+   * normal Pixi stage handler snap. Self-removes when the drag ends.
+   */
+  private armBoardDragWatch(pointerId: number) {
+    this.disarmBoardDragWatch()
+
+    // Keep the piece tracking the cursor even once it leaves the canvas (Pixi
+    // stops emitting pointermove off-canvas), so a piece dragged toward the tray
+    // follows the cursor all the way instead of freezing at the board edge.
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId || !this.dragging || !this.canvas) return
+      const rect = this.canvas.getBoundingClientRect()
+      this.moveDraggingTo({ x: ev.clientX - rect.left, y: ev.clientY - rect.top })
+      // Live drop-target feedback: where this piece would land in the tray.
+      if (!this.dragging.placed) {
+        this.emitTrayHover(this.trayDropIndex?.(ev.clientX, ev.clientY) ?? null)
+      }
+    }
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return
+      const sprite = this.dragging
+      // null → not over the tray; a number → insert at that tray index.
+      const dropIndex = this.trayDropIndex?.(ev.clientX, ev.clientY) ?? null
+      this.disarmBoardDragWatch()
+      if (!sprite) return
+      sprite.cursor = 'grab'
+      // We own this release (window pointerup fires even off-canvas). Decide
+      // snap-vs-stash here so Pixi's stage handler never double-processes it.
+      if (!sprite.placed && dropIndex !== null) {
+        this.stashDraggedToTray(sprite, dropIndex)
+      } else {
+        this.trySnap(sprite)
+      }
+      this.dragging = null
+      this.isPanning = false
+    }
+    this.boardDragMove = onMove
+    this.boardDragUp = onUp
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
+
+  private disarmBoardDragWatch() {
+    if (this.boardDragMove) {
+      window.removeEventListener('pointermove', this.boardDragMove)
+      this.boardDragMove = null
+    }
+    if (this.boardDragUp) {
+      window.removeEventListener('pointerup', this.boardDragUp)
+      window.removeEventListener('pointercancel', this.boardDragUp)
+      this.boardDragUp = null
+    }
+    this.emitTrayHover(null)   // hide the insertion marker when the drag ends
+  }
+
+  /** Notify React of the live tray drop index, only when it changes. */
+  private emitTrayHover(index: number | null) {
+    if (index === this.lastTrayHover) return
+    this.lastTrayHover = index
+    this.onTrayHover?.(index)
+  }
+
+  /**
+   * Stash a dragged piece (and any group members) into the tray at `insertAt`
+   * (its index in trayOrder), so it lands where it was dropped. Group members go
+   * in as a contiguous block. Index is clamped to the current tray length.
+   */
+  private stashDraggedToTray(sprite: PieceSprite, insertAt: number) {
+    const ids = sprite.groupId !== null
+      ? (this.groups.get(sprite.groupId) ?? [sprite.pieceId])
+      : [sprite.pieceId]
+    const toStash: number[] = []
+    for (const id of ids) {
+      const s = this.pieces.get(id)
+      if (!s || s.placed || s.inTray) continue
+      s.inTray = true
+      s.visible = false
+      toStash.push(id)
+    }
+    if (toStash.length === 0) return
+    const at = Math.max(0, Math.min(insertAt, this.trayOrder.length))
+    this.trayOrder.splice(at, 0, ...toStash)
+    AudioManager.play('tray_add')
+    this.onTrayUpdate(this.getTrayPieceIds())
   }
 
   // ─── Pinch zoom ──────────────────────────────────────────────────────────
@@ -433,6 +564,7 @@ export class PuzzleEngine {
     // Abandon single-touch interactions so they don't fight the pinch
     this.cancelLongPress()
     if (this.dragging) { this.dragging.cursor = 'grab'; this.dragging = null }
+    this.disarmBoardDragWatch()
     this.isPanning = false
     this.isPinching = true
     this.pinchStartDist = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y) || 1
@@ -692,6 +824,46 @@ export class PuzzleEngine {
     this.trayOrder = this.trayOrder.filter(id => id !== pieceId)
     AudioManager.play('tray_retrieve')
     this.onTrayUpdate(this.getTrayPieceIds())
+  }
+
+  /**
+   * Pull a piece out of the tray and drop it onto the board at a screen point
+   * (client/page coordinates, e.g. from a pointerup). The piece is centred under
+   * the cursor and snapped if it lands near its home — the same placement check a
+   * normal board drop runs. Returns false if the point is outside the canvas (so
+   * the caller can treat it as "dropped back in the tray" and leave it stashed).
+   */
+  dropFromTray(pieceId: number, clientX: number, clientY: number): boolean {
+    const sprite = this.pieces.get(pieceId)
+    if (!sprite || !sprite.inTray || !this.canvas) return false
+
+    const rect = this.canvas.getBoundingClientRect()
+    // Outside the board area → leave the piece in the tray.
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      return false
+    }
+
+    // Pixi globals are canvas-relative; subtract the canvas origin from the page
+    // point, then map through the same layer transform a board drag uses.
+    const global = new Point(clientX - rect.left, clientY - rect.top)
+    const local = this.piecesLayer.toLocal(global)
+
+    sprite.inTray = false
+    sprite.visible = true
+    sprite.rotation = 0
+    sprite.x = local.x
+    sprite.y = local.y
+    this.trayOrder = this.trayOrder.filter(id => id !== pieceId)
+
+    // Front of the stack so it isn't hidden under neighbours.
+    this.piecesLayer.setChildIndex(sprite, this.piecesLayer.children.length - 1)
+
+    AudioManager.play('tray_retrieve')
+    this.onTrayUpdate(this.getTrayPieceIds())
+
+    // Snap home if the drop landed close enough — mirrors a board-drag release.
+    this.trySnap(sprite)
+    return true
   }
 
   getTrayPieceIds(): number[] {
@@ -1078,6 +1250,7 @@ export class PuzzleEngine {
   destroy() {
     this.destroyed = true
     this.cancelLongPress()
+    this.disarmBoardDragWatch()
     cancelAnimationFrame(this.rafId)
     if (this.appInitialized) {
       this.app.destroy(false, { children: true, texture: true })

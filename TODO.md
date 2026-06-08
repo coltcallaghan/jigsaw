@@ -95,6 +95,13 @@ Remaining (config / store, once the Steam app exists):
 - [x] `aria-label`s on icon-only Rename/Delete buttons in Load Saved.
 - [ ] Confirm puzzle save/resume works across all 8 sizes (esp. 5000/10000 perf)
       — manual QA on device/desktop. (Storage bug fixed; perf still unverified.)
+  - **Code audit done (2026-06-08):** save/resume path in `utils/saveGame.ts` is
+    sound (IndexedDB, `put` overwrites, all ops try/caught). **Fixed a latent
+    durability bug:** `tx()` resolved on the request's `onsuccess`, not the
+    transaction's `oncomplete` — a large 5k/10k write could report success and
+    then abort (e.g. quota exceeded mid-flush). Writes now resolve on
+    `transaction.oncomplete` (+ `onabort` rejects), so a `true` from `writeSave`
+    is genuinely durable. Perf at 5k/10k still needs a real device check.
 - [x] **GPU texture exhaustion fixed via texture atlas** — pieces used to get
       one `Texture.from(bitmap)` each (10000 GPU surfaces → IOSurface exhaustion
       on large puzzles). `renderPieceTextures` now packs pieces into a few
@@ -102,6 +109,11 @@ Remaining (config / store, once the Steam app exists):
       shared atlas source, collapsing thousands of surfaces → a handful. Verified
       pieces render full image content + correct positioning at 500pc, 0 GPU
       errors. (2026-06-05) — still worth a device check at 10000.
+  - **Code audit done (2026-06-08):** `renderPieceTextures` packing logic is
+    correct — `cellsPerAtlas` slicing, per-atlas canvas sized to used rows, 2048
+    cap, `Promise.all` over slices. No code defect found; the 10k device check is
+    purely "watch a real GPU report 0 IOSurface errors," which can't be done in
+    code.
 - [x] **Fonts bundled for offline.** All UI fonts are now self-hosted via
       `@fontsource` (imported in `src/fonts.ts`, latin subset only) and the
       Google Fonts CDN `<link>`s are removed from `index.html`. Verified: the
@@ -123,15 +135,22 @@ Remaining (config / store, once the Steam app exists):
     `npm run package:mac` (output `release/`) is for CI / signed release builds.
   - Unsigned builds prompt for keychain ("jigsaw Safe Storage", Chromium cookie
     encryption) on launch — expected; a real Developer ID signature removes it.
-- [ ] Fuller accessibility pass: keyboard nav through difficulty grid + focus
-      order audit (beyond the labels above).
-- [ ] **Bump GitHub Actions off Node 20 before Sep 2026** (cosmetic; nothing
-      breaks now). All 7 workflows in `.github/workflows/` use `actions/*@v4`
-      (checkout, setup-node, setup-java, upload-artifact, deploy-pages, etc.)
-      which run on the Node 20 runtime — GitHub deprecates it: forced to Node 24
-      on **2026-06-16**, removed **2026-09-16**. Fix by bumping to action
-      versions that support Node 24, or set
-      `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in the workflows.
+- [x] **Fuller accessibility pass — difficulty grid (2026-06-08).** The
+      difficulty cards were `<div onClick>` only: not focusable, not
+      keyboard-reachable, no role, no selected-state announced. Rebuilt as a
+      proper `role="radiogroup"` of `<button role="radio">` cards
+      (`SetupScreen.tsx`): roving tabindex (only the active card is tabbable),
+      Arrow/Home/End navigation that moves focus (including onto locked cards so
+      they're discoverable) with Enter/Space/click activating or opening the
+      upsell, `aria-checked` on the selected size, descriptive `aria-label` per
+      card (pieces + label + time + locked state), and a `:focus-visible`
+      outline. Lock glyph marked `aria-hidden` (its meaning is in the label).
+- [x] **Bumped GitHub Actions Node pin 20 → 24 (2026-06-08).** All 6 workflows
+      that pin `setup-node` now request `node-version: 24` (`deploy`,
+      `build-ios`, `build-android`, `build-steam-{linux,mac,windows}`). The
+      `actions/*@v4`/`@v3` action runtimes already support Node 24, and there's
+      no `engines`/`.nvmrc` pin to conflict — so no `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`
+      shim needed. Ahead of GitHub's forced cutover (2026-06-16).
 - [ ] **Theme-styled puzzle images** (parked 2026-06-04). Idea: restyle the
       photo per theme so it matches the theme's look (e.g. cartoon = "Mario"
       illustration, arcade = neon). Findings from a spike:

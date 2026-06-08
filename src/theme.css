@@ -469,6 +469,43 @@ input[type=range].rng::-moz-range-thumb {
 .tray-slot:hover { transform: scale(1.05); border-color: var(--primary); }
 .tray-slot svg { width: 78%; height: 78%; filter: drop-shadow(1px 2px 2px rgba(0,0,0,.3)); }
 
+/* While a piece is being dragged out, freeze tray scrolling so the gesture
+   isn't stolen by the scroll container. */
+.tray-body.tray-dragging { touch-action: none; overflow: hidden; }
+
+/* Insertion marker: shows where a board piece dragged into the tray will land.
+   A glowing bar drawn just outside the slot's leading edge (top on the desktop
+   grid; the .after variant marks the trailing edge for an append-at-end drop). */
+.tray-slot.drop-before::before,
+.tray-slot.drop-after::after {
+  content: ''; position: absolute; z-index: 5; pointer-events: none;
+  left: -6px; right: -6px; height: 4px; border-radius: 2px;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary), 0 0 3px var(--primary);
+}
+.tray-slot.drop-before::before { top: -6px; }
+.tray-slot.drop-after::after { bottom: -6px; }
+/* Touch strip is horizontal — mark the left/right edges instead. */
+@media (pointer: coarse) {
+  .tray-slot.drop-before::before,
+  .tray-slot.drop-after::after {
+    left: auto; right: auto; top: -6px; bottom: -6px;
+    width: 4px; height: auto;
+  }
+  .tray-slot.drop-before::before { left: -6px; }
+  .tray-slot.drop-after::after { right: -6px; }
+}
+
+/* Floating preview that follows the pointer when dragging a piece to the board.
+   Centred on the cursor; non-interactive so it never eats the pointerup. */
+.tray-drag-ghost {
+  position: fixed; z-index: 1000; pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.1);
+  filter: drop-shadow(2px 4px 6px rgba(0,0,0,.4));
+  opacity: .92;
+}
+.tray-drag-ghost svg { width: 100%; height: 100%; }
+
 /* ── WIN OVERLAY ─────────────────────────────────────────── */
 .win-overlay {
   position: absolute; inset: 0; z-index: 60; display: grid; place-items: center;
