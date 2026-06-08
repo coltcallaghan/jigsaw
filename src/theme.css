@@ -261,8 +261,15 @@ h1, h2, h3 {
   background: var(--surface); padding: 14px 8px; text-align: center; cursor: pointer;
   transition: transform .14s var(--ease), box-shadow .14s, background .2s, border-color .2s;
   box-shadow: var(--shadow-sm);
+  font: inherit; color: inherit; width: 100%; -webkit-appearance: none; appearance: none;
 }
 .diff-card:hover { transform: translateY(-3px); }
+.diff-card:focus { outline: none; }
+.diff-card:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  transform: translateY(-3px);
+}
 .diff-card .num { font-family: var(--font-head); font-weight: var(--head-weight); font-size: 1.5rem; line-height: 1; }
 .app[data-theme="arcade"] .diff-card .num { font-size: 1rem; }
 .diff-card .lab { font-family: var(--font-head); font-size: .68rem; letter-spacing: .12em; margin-top: 6px; color: var(--text-dim); text-transform: uppercase; }

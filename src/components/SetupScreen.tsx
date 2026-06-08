@@ -34,17 +34,51 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 
 export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }: SetupScreenProps) {
   const [selected, setSelected] = useState<PieceCountOption>(100)
+  // Roving-focus target within the radiogroup; may sit on a locked card so
+  // keyboard users can discover (and be offered) locked sizes.
+  const [focusedCount, setFocusedCount] = useState<PieceCountOption>(100)
   const [name, setName] = useState(imageName)
   const [showUpsell, setShowUpsell] = useState(false)
   // Bumped after an unlock so isPieceSizeAllowed() is re-evaluated on render.
   const [unlockVersion, setUnlockVersion] = useState(0)
 
   const handleSelect = (count: PieceCountOption) => {
+    setFocusedCount(count)
     if (!isPieceSizeAllowed(count)) {
       setShowUpsell(true)
       return
     }
     setSelected(count)
+  }
+
+  // Arrow keys move roving focus across the radiogroup (including onto locked
+  // cards); activation (Enter/Space/click) is what selects or offers an unlock.
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const navKeys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End']
+    if (!navKeys.includes(e.key)) return
+    e.preventDefault()
+    const currentIndex = Math.max(0, DIFFICULTIES.findIndex(d => d.count === focusedCount))
+    const last = DIFFICULTIES.length - 1
+    let nextIndex = currentIndex
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextIndex = currentIndex >= last ? 0 : currentIndex + 1
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextIndex = currentIndex <= 0 ? last : currentIndex - 1
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = last
+        break
+    }
+    const next = DIFFICULTIES[nextIndex].count
+    setFocusedCount(next)
+    e.currentTarget.querySelector<HTMLElement>(`[data-count="${next}"]`)?.focus()
   }
 
   // unlockVersion is read so this recomputes after a purchase/restore.
@@ -89,25 +123,39 @@ export default function SetupScreen({ imageDataUrl, imageName, onStart, onBack }
 
           {/* Right: difficulty */}
           <div>
-            <h3 style={{ marginBottom: 14, fontSize: '1.15rem', fontFamily: 'var(--font-head)' }}>Choose difficulty</h3>
-            <div className="diff-grid">
+            <h3 id="difficulty-label" style={{ marginBottom: 14, fontSize: '1.15rem', fontFamily: 'var(--font-head)' }}>Choose difficulty</h3>
+            <div
+              className="diff-grid"
+              role="radiogroup"
+              aria-labelledby="difficulty-label"
+              onKeyDown={handleGridKeyDown}
+            >
               {DIFFICULTIES.map(d => {
                 const locked = !isPieceSizeAllowed(d.count)
+                const isSelected = selected === d.count
                 return (
-                  <div
+                  <button
                     key={d.count}
-                    className={`diff-card${selected === d.count ? ' sel' : ''}${locked ? ' locked' : ''}`}
+                    type="button"
+                    data-count={d.count}
+                    role="radio"
+                    aria-checked={isSelected}
+                    // Roving tabindex: only the focused card is in the tab order.
+                    tabIndex={focusedCount === d.count ? 0 : -1}
+                    aria-label={`${d.count.toLocaleString()} pieces, ${d.label}, ${d.time}${locked ? ', locked — unlock with one-time purchase' : ''}`}
+                    className={`diff-card${isSelected ? ' sel' : ''}${locked ? ' locked' : ''}`}
                     onClick={() => handleSelect(d.count)}
+                    onFocus={() => setFocusedCount(d.count)}
                   >
                     {locked && (
-                      <span className="diff-lock" title="Unlock with one-time purchase" aria-label="Locked">
+                      <span className="diff-lock" title="Unlock with one-time purchase" aria-hidden="true">
                         <Icon name="lock" size={14} />
                       </span>
                     )}
                     <div className="num">{d.count.toLocaleString()}</div>
                     <div className="lab">{d.label}</div>
                     <div className="tm">{d.time}</div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
